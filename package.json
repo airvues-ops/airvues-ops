@@ -1,0 +1,32 @@
+{
+  "name": "airvues-ops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Airvues internal operations dashboard. Next.js 14 + NextAuth (Google) + Airtable. Deployed to Vercel.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "verify-schema": "tsx scripts/verify-schema.ts"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.10",
+    "next": "14.2.33",
+    "next-auth": "5.0.0-beta.20",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "samlify": "^2.13.0",
+    "xml-crypto": "^6.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.9",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "autoprefixer": "10.4.19",
+    "postcss": "8.4.40",
+    "tailwindcss": "3.4.7",
+    "tsx": "4.16.2",
+    "typescript": "5.5.4"
+  }
+}
