@@ -4,6 +4,7 @@
 // Stateful client component; desktop sidebar is a separate server component.
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -69,10 +70,10 @@ export function MobileNav({ userEmail, userRole, samlActive, signOutAction }: Pr
       <header className="md:hidden sticky top-0 z-40 bg-sidebar border-b border-rule">
         <div className="flex items-center justify-between px-4 h-14">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-emerald rounded-[3px]" />
+            <Image src="/airvues-mark.png" alt="Airvues" width={22} height={24} priority />
             <div>
               <div className="text-[14px] font-semibold text-ink-strong leading-none">Airvues</div>
-              <div className="text-[10px] text-ink-muted leading-none mt-0.5">Operations</div>
+              <div className="text-[10px] text-ink-muted leading-none mt-0.5 uppercase tracking-wider">Operations</div>
             </div>
           </Link>
           <button
@@ -104,9 +105,12 @@ export function MobileNav({ userEmail, userRole, samlActive, signOutAction }: Pr
             aria-label="Navigation"
           >
             <div className="flex items-center justify-between px-5 pt-4 pb-5">
-              <div>
-                <div className="text-[15px] font-semibold text-ink-strong">Airvues</div>
-                <div className="text-[11px] text-ink-muted mt-0.5">Operations</div>
+              <div className="flex items-center gap-2.5">
+                <Image src="/airvues-mark.png" alt="Airvues" width={28} height={30} />
+                <div>
+                  <div className="text-[15px] font-semibold text-ink-strong leading-none">Airvues</div>
+                  <div className="text-[10px] text-ink-muted mt-1 leading-none uppercase tracking-wider">Operations</div>
+                </div>
               </div>
               <button
                 type="button"

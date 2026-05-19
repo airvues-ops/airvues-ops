@@ -2,6 +2,7 @@
 // Password fallback was removed 2026-05-18 after Google OAuth was verified working.
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import Image from "next/image";
 import { auth, signIn } from "@/lib/auth";
 import { SAML_COOKIE_NAME, verifySamlSession } from "@/lib/samlSession";
 
@@ -36,7 +37,7 @@ export default async function LoginPage({
     <div className="min-h-screen grid place-items-center bg-bg p-4">
       <div className="max-w-md w-full bg-surface border border-rule rounded-card p-10 shadow-card">
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-5 h-5 bg-emerald rounded-[3px]" />
+          <Image src="/airvues-mark.png" alt="Airvues" width={36} height={38} priority />
           <span className="text-[15px] font-semibold text-ink-strong">Airvues Ops</span>
         </div>
         <h1 className="text-2xl font-semibold text-ink-strong mb-2 leading-tight">Sign in</h1>

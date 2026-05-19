@@ -1,6 +1,7 @@
 // Left sidebar nav — operational dashboard rail.
 // Routes come from lib/nav.ts (single source of truth); icons are mapped locally.
 import Link from "next/link";
+import Image from "next/image";
 import { signOut } from "@/lib/auth";
 import { getAppSession, isDevPreview } from "@/lib/session";
 import { isSamlEnabled } from "@/lib/saml";
@@ -137,10 +138,20 @@ export async function Sidebar() {
   return (
     <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-[208px] bg-sidebar border-r border-rule flex-col z-40">
       {/* Brand */}
-      <div className="px-5 pt-5 pb-6">
-        <div className="text-[15px] font-semibold text-ink-strong">Airvues</div>
-        <div className="text-[11px] text-ink-muted mt-0.5">Operations</div>
-      </div>
+      <Link href="/" className="flex items-center gap-2.5 px-5 pt-5 pb-6 group">
+        <Image
+          src="/airvues-mark.png"
+          alt="Airvues"
+          width={28}
+          height={30}
+          className="shrink-0 group-hover:opacity-90 transition-opacity"
+          priority
+        />
+        <div>
+          <div className="text-[15px] font-semibold text-ink-strong leading-none">Airvues</div>
+          <div className="text-[10px] text-ink-muted mt-1 leading-none uppercase tracking-wider">Operations</div>
+        </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 px-3">
