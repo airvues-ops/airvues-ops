@@ -1,5 +1,3 @@
-// Sign-in page. Google OAuth only.
-// Password fallback was removed 2026-05-18 after Google OAuth was verified working.
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Image from "next/image";
@@ -13,13 +11,11 @@ export default async function LoginPage({
 }) {
   const sp = await searchParams;
 
-  // Already signed in via NextAuth?
   const nextSession = await auth();
   if (nextSession?.user?.email) {
     redirect(sp.from || "/");
   }
 
-  // Already signed in via lingering SAML cookie (from previous password sessions)?
   const samlToken = (await cookies()).get(SAML_COOKIE_NAME)?.value;
   const samlSession = samlToken ? await verifySamlSession(samlToken) : null;
   if (samlSession) {
@@ -37,8 +33,6 @@ export default async function LoginPage({
 
   return (
     <div className="min-h-screen grid place-items-center bg-bg p-4 relative overflow-hidden">
-      {/* Atmospheric backdrop — emerald glow above, navy depth below.
-          Subtle enough to read as ambient, not loud. */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -49,7 +43,6 @@ export default async function LoginPage({
       />
 
       <div className="relative max-w-md w-full bg-surface border border-rule rounded-card p-10 shadow-card animate-in fade-in slide-in-from-bottom-2 duration-500">
-        {/* Hairline emerald accent at top of card — barely there, just enough to feel deliberate */}
         <div
           className="absolute top-0 left-10 right-10 h-px"
           style={{
@@ -59,15 +52,8 @@ export default async function LoginPage({
           aria-hidden="true"
         />
 
-        {/* Brand block */}
         <div className="flex items-center gap-3 mb-10">
-          <Image
-            src="/airvues-mark.png"
-            alt="Airvues"
-            width={40}
-            height={43}
-            priority
-          />
+          <Image src="/airvues-mark.png" alt="Airvues" width={40} height={43} priority />
           <div>
             <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-faint">
               Airvues
@@ -82,8 +68,7 @@ export default async function LoginPage({
           Sign in
         </h1>
         <p className="text-ink-muted text-[13px] mb-8 leading-relaxed">
-          Internal tool for Airvues LLC. Sign in with your{" "}
-          <span className="font-mono text-ink-strong">@airvues.com</span> Google account.
+          Continue with your Airvues Google account.
         </p>
 
         {errorMsg && (
@@ -107,16 +92,7 @@ export default async function LoginPage({
           </button>
         </form>
 
-        <p className="text-[11px] text-ink-faint mt-6 leading-relaxed">
-          Allowlist: any <span className="font-mono text-ink-muted">@airvues.com</span> Workspace
-          user, plus Lee&apos;s personal Gmail. Role is derived from your email —{" "}
-          <span className="font-mono text-ink-muted">admin</span> /{" "}
-          <span className="font-mono text-ink-muted">lead</span> /{" "}
-          <span className="font-mono text-ink-muted">engineer</span>.
-        </p>
-
-        {/* Signature footer — small but deliberate */}
-        <div className="mt-8 pt-5 border-t border-rule flex items-center justify-between text-[10px] font-mono text-ink-faint uppercase tracking-wider">
+        <div className="mt-10 pt-5 border-t border-rule flex items-center justify-between text-[10px] font-mono text-ink-faint uppercase tracking-wider">
           <span>Airvues LLC</span>
           <span className="tabnum">© {year}</span>
         </div>
