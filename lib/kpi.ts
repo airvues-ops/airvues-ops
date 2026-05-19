@@ -67,21 +67,24 @@ export async function revenueYtd(): Promise<KpiResult> {
 }
 
 /** MRR: SUM(Invoice Amount) WHERE Type='Recurring' AND Status='paid' AND Date in current month */
+/** MRR: sum of Invoice Amount across active recurring subscriptions.
+ *  Source: Invoices where Invoice Type = 'Recurring' AND Invoice Status = 'subscribed'.
+ *  Each 'subscribed' record represents one active subscription template (one client
+ *  paying monthly), so summing Invoice Amount gives the monthly recurring run-rate.
+ *  Mirrors the filter used in onRetainerPct() so the two KPIs stay consistent. */
 export async function mrr(): Promise<KpiResult> {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
   const t = Tables.Invoices;
-  const records = await listRecordsCached<{ "Invoice Amount"?: number; "Invoice Type"?: string; "Invoice Status"?: string; Date?: string }>(
+  const records = await listRecordsCached<{ "Invoice Amount"?: number }>(
     t.id,
     {
-      filterByFormula: `AND({Invoice Type} = 'Recurring', {Invoice Status} = 'paid', IS_AFTER({Date}, '${monthStart}'), IS_BEFORE({Date}, '${monthEnd}'))`,
-      fields: [t.fields["Invoice Amount"].id, t.fields["Invoice Type"].id, t.fields["Invoice Status"].id, t.fields["Date"].id],
+      filterByFormula: `AND({Invoice Type} = 'Recurring', {Invoice Status} = 'subscribed')`,
+      fields: [t.fields["Invoice Amount"].id],
     },
     ["kpi:mrr"],
   );
   const total = records.reduce((sum, r) => sum + (r.fields["Invoice Amount"] || 0), 0);
   const target = 41_700;
+  const subCount = records.length;
   return {
     value: total,
     formatted: fmtCurrency(total),
@@ -89,6 +92,7 @@ export async function mrr(): Promise<KpiResult> {
     target,
     targetLabel: `Target ${fmtCurrency(target)} · ${Math.round((total / target) * 100)}%`,
     asOf: new Date(),
+    note: `${subCount} active recurring subscription${subCount === 1 ? "" : "s"}`,
   };
 }
 
