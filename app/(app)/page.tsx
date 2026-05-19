@@ -1,10 +1,13 @@
 // Founder home — dense operational landing. Compact KPIs + quick-jump cards to each section.
+// All KPI tiles + Jump-to cards are clickable. Per Lee's instruction: "click any tile to drill in."
 import { getAppSession } from "@/lib/session";
-import { mrr, onRetainerPct, openReceivables, revenueYtd, sprintDelivery } from "@/lib/kpi";
+import { companyGoalsData, mrr, onRetainerPct, openReceivables, revenueYtd, sprintDelivery } from "@/lib/kpi";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { StatCard } from "@/components/ui/StatCard";
-import Link from "next/link";
+import { CompanyGoals } from "@/components/home/CompanyGoals";
+import { HomeKpiCard } from "@/components/home/HomeKpiCard";
+import { HomeJumpCard } from "@/components/home/HomeJumpCard";
+import { NAV_ITEMS } from "@/lib/nav";
 
 function firstName(email: string | null | undefined): string {
   if (!email) return "Lee";
@@ -28,16 +31,17 @@ export default async function HomePage() {
   const session = await getAppSession();
   const name = firstName(session?.user?.email);
 
-  const [revenue, mrrR, retainer, sprint, receivables] = await Promise.all([
+  const [revenue, mrrR, retainer, sprint, receivables, goals] = await Promise.all([
     safe(revenueYtd),
     safe(mrr),
     safe(onRetainerPct),
     safe(sprintDelivery),
     safe(openReceivables),
+    safe(companyGoalsData),
   ]);
 
   return (
-    <main className="max-w-[1600px] mx-auto px-6 py-5">
+    <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
       <PageHeader
         title={`Welcome, ${name}.`}
         subtitle="A snapshot of the firm. Click any tile to drill in."
@@ -51,20 +55,29 @@ export default async function HomePage() {
         }
       />
 
-      {/* KPI grid */}
-      <SectionTitle title="Key indicators" aside="Phase 1 metrics live · others coming online" />
+      {/* KPI grid — every tile is a Link to its destination */}
+      <SectionTitle title="Key indicators" aside="Click any tile to drill in" />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
-        <StatCard
+        <HomeKpiCard
+          href="/money?status=paid"
           label="YTD Revenue"
           value={"value" in revenue ? revenue.formatted : "—"}
-          sub={"value" in revenue ? revenue.targetLabel : "—"}
+          sub={
+            "value" in revenue
+              ? `${revenue.targetLabel ?? ""} · ${revenue.note ?? ""}`.replace(/^ · | · $/g, "")
+              : "—"
+          }
+          title="Sum of paid invoice amount since Jan 1 — see /money for breakdown"
         />
-        <StatCard
+        <HomeKpiCard
+          href="/money?type=Recurring"
           label="MRR"
           value={"value" in mrrR ? mrrR.formatted : "—"}
           sub={"value" in mrrR ? mrrR.targetLabel : "—"}
+          title="Recurring invoices paid this month — see /money filtered to Recurring"
         />
-        <StatCard
+        <HomeKpiCard
+          href="/money?status=open"
           label="Open AR"
           value={"total" in receivables ? fmtCurrency(receivables.total) : "—"}
           sub={
@@ -72,37 +85,38 @@ export default async function HomePage() {
               ? `${receivables.count} unpaid${receivables.overdue > 0 ? ` · ${receivables.overdue} past due` : ""}`
               : "—"
           }
+          title="Invoices in open / sent / unsent / past due — see /money filtered to Open"
         />
-        <StatCard
+        <HomeKpiCard
+          href="/sprints"
           label="Sprint delivery"
           value={"value" in sprint ? sprint.formatted : "—"}
           sub={"value" in sprint ? sprint.note ?? undefined : undefined}
+          title="Last 4 done sprints' avg story-completion rate"
         />
-        <StatCard
+        <HomeKpiCard
+          href="/clients"
           label="On retainer"
           value={"value" in retainer ? retainer.formatted : "—"}
           sub={"value" in retainer ? retainer.note ?? undefined : undefined}
+          title="Distinct payers with active Recurring subscription / total Active companies"
         />
       </div>
 
-      {/* Quick-jump cards */}
-      <SectionTitle title="Jump to" aside="Drill into a section" />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { href: "/money", title: "Money", desc: "Invoices · AR aging · MRR · top clients · drill into each record" },
-          { href: "/pipeline", title: "Pipeline", desc: "Stalled quotes · funnel · goal tracker · stage breakdown" },
-          { href: "/clients", title: "Clients", desc: "Active · at-risk · retainer tier · concentration risk" },
-          { href: "/team", title: "Team", desc: "Headcount · unrouted payments · onboarding pipeline" },
-        ].map((card) => (
-          <Link
-            key={card.href}
-            href={card.href}
-            className="block bg-surface border border-rule rounded-card p-4 hover:border-rule-strong transition-colors"
-          >
-            <div className="text-[14px] font-semibold text-ink-strong mb-1">{card.title}</div>
-            <div className="text-[12px] text-ink-muted leading-snug">{card.desc}</div>
-            <div className="mt-3 text-[11px] font-mono text-emerald">Open →</div>
-          </Link>
+      {/* Company goals — gamified progress bars */}
+      {"ytdRevenue" in goals && (
+        <CompanyGoals
+          ytdRevenue={goals.ytdRevenue}
+          retainerCount={goals.retainerCount}
+          activeClients={goals.activeClients}
+        />
+      )}
+
+      {/* Quick-jump cards — sourced from the same constant as Sidebar/MobileNav */}
+      <SectionTitle title="Jump to" aside="Every page in the dashboard" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        {NAV_ITEMS.filter((n) => n.showOnHome).map((card) => (
+          <HomeJumpCard key={card.href} href={card.href} title={card.label} desc={card.desc ?? ""} />
         ))}
       </div>
     </main>

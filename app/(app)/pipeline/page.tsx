@@ -14,7 +14,7 @@ export default async function PipelinePage() {
   }
 
   return (
-    <main className="max-w-[1600px] mx-auto px-6 py-5">
+    <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
       <PageHeader
         title="Pipeline"
         subtitle="All quotes · stages, conversion, stalled deals. Click any row to drill in."

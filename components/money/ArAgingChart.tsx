@@ -41,20 +41,20 @@ export function ArAgingChart({ buckets, onBucketClick }: Props) {
               onClick={() => onBucketClick(b.min, b.max)}
               className="w-full text-left group"
             >
-              <div className="grid grid-cols-[100px_1fr_100px_40px] items-center gap-3">
-                <span className={`text-[12px] font-medium ${tone.text}`}>
+              <div className="grid grid-cols-[80px_1fr_90px_28px] sm:grid-cols-[100px_1fr_100px_40px] items-center gap-2 sm:gap-3">
+                <span className={`text-[11px] sm:text-[12px] font-medium ${tone.text}`}>
                   {b.label}
                 </span>
-                <div className="h-6 bg-bg rounded-sm overflow-hidden relative">
+                <div className="h-5 sm:h-6 bg-bg rounded-sm overflow-hidden relative">
                   <div
                     className={`h-full ${tone.bar} transition-all`}
                     style={{ width: `${widthPct}%` }}
                   />
                 </div>
-                <span className="text-[13px] text-ink-strong font-semibold tabnum text-right">
+                <span className="text-[12px] sm:text-[13px] text-ink-strong font-semibold tabnum text-right">
                   {fmtCurrency(b.total)}
                 </span>
-                <span className="text-[11px] text-ink-faint tabnum font-mono text-right">
+                <span className="text-[10px] sm:text-[11px] text-ink-faint tabnum font-mono text-right">
                   {b.count}
                 </span>
               </div>

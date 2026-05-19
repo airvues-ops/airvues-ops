@@ -260,13 +260,13 @@ export function PipelineDashboard({ quotes }: Props) {
           {stageBreakdown.map((b) => {
             const widthPct = (b.total / stageMaxTotal) * 100;
             return (
-              <div key={b.status} className="grid grid-cols-[180px_1fr_120px_40px] items-center gap-3">
-                <span className="text-[12px] text-ink truncate">{b.status}</span>
-                <div className="h-5 bg-bg rounded-sm overflow-hidden">
+              <div key={b.status} className="grid grid-cols-[120px_1fr_90px_28px] sm:grid-cols-[180px_1fr_120px_40px] items-center gap-2 sm:gap-3">
+                <span className="text-[11px] sm:text-[12px] text-ink truncate">{b.status}</span>
+                <div className="h-4 sm:h-5 bg-bg rounded-sm overflow-hidden">
                   <div className={`h-full ${stageBarColor(b.status)}`} style={{ width: `${widthPct}%` }} />
                 </div>
-                <span className="text-[12px] text-ink-strong font-semibold tabnum text-right">{fmtCurrency(b.total)}</span>
-                <span className="text-[11px] text-ink-faint tabnum font-mono text-right">{b.count}</span>
+                <span className="text-[11px] sm:text-[12px] text-ink-strong font-semibold tabnum text-right">{fmtCurrency(b.total)}</span>
+                <span className="text-[10px] sm:text-[11px] text-ink-faint tabnum font-mono text-right">{b.count}</span>
               </div>
             );
           })}

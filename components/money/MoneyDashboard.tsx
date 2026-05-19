@@ -9,7 +9,10 @@ import { InvoiceSheet } from "./InvoiceSheet";
 import { ArAgingChart } from "./ArAgingChart";
 import { DEFAULT_SORT, EMPTY_FILTER, Filter, Sort, StatusBucket } from "./types";
 
-type Props = { invoices: MoneyInvoice[] };
+type Props = {
+  invoices: MoneyInvoice[];
+  initialFilter?: Partial<Filter>;
+};
 
 const fmtCurrency = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -87,8 +90,8 @@ function arAgingBuckets(rows: MoneyInvoice[]) {
   const openish = ["open", "sent", "unsent", "past due"];
   for (const r of rows) {
     if (!r.status || !openish.includes(r.status)) continue;
-    if (!r.lastModified) continue;
-    const days = Math.floor((now - new Date(r.lastModified).getTime()) / 86_400_000);
+    if (!r.date) continue;
+    const days = Math.floor((now - new Date(r.date).getTime()) / 86_400_000);
     const b = buckets.find((x) => days >= x.min && days < x.max);
     if (!b) continue;
     b.total += r.amount;
@@ -97,8 +100,8 @@ function arAgingBuckets(rows: MoneyInvoice[]) {
   return buckets;
 }
 
-export function MoneyDashboard({ invoices }: Props) {
-  const [filter, setFilter] = useState<Filter>(EMPTY_FILTER);
+export function MoneyDashboard({ invoices, initialFilter }: Props) {
+  const [filter, setFilter] = useState<Filter>({ ...EMPTY_FILTER, ...initialFilter });
   const [sort, setSort] = useState<Sort>(DEFAULT_SORT);
   const [selected, setSelected] = useState<MoneyInvoice | null>(null);
 
@@ -174,10 +177,10 @@ export function MoneyDashboard({ invoices }: Props) {
           sub={`${kpis.paidCount} invoices`}
         />
         <StatCard
-          label="Margin Profit"
+          label="Gross Margin (rollup)"
           tone="emerald"
           value={fmtCurrency(kpis.totalMarginProfit)}
-          sub={`${kpis.marginPct.toFixed(1)}% margin`}
+          sub={`${kpis.marginPct.toFixed(1)}% per Airtable rollup · not net-of-engineer-pay`}
         />
         <StatCard
           label="Total Overhead"

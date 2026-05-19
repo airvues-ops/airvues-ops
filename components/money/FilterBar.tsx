@@ -32,8 +32,8 @@ export function FilterBar({ filter, setFilter, payers, totalCount, filteredCount
   return (
     <div className="mb-4">
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Search */}
-        <div className="flex-1 min-w-[240px] relative">
+        {/* Search — full-width on mobile, flexes on desktop */}
+        <div className="w-full sm:flex-1 sm:min-w-[240px] relative">
           <svg
             className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-faint"
             viewBox="0 0 24 24"

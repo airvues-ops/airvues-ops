@@ -200,13 +200,13 @@ export function ClientsDashboard({ clients }: { clients: ClientRow[] }) {
               Archived: "bg-ink-faint",
             };
             return (
-              <div key={b.engagement} className="grid grid-cols-[110px_1fr_120px_40px] items-center gap-3">
-                <span className="text-[12px] text-ink">{b.engagement}</span>
-                <div className="h-5 bg-bg rounded-sm overflow-hidden">
+              <div key={b.engagement} className="grid grid-cols-[80px_1fr_90px_28px] sm:grid-cols-[110px_1fr_120px_40px] items-center gap-2 sm:gap-3">
+                <span className="text-[11px] sm:text-[12px] text-ink">{b.engagement}</span>
+                <div className="h-4 sm:h-5 bg-bg rounded-sm overflow-hidden">
                   <div className={`h-full ${colorMap[b.engagement] ?? "bg-ink-muted"}`} style={{ width: `${widthPct}%` }} />
                 </div>
-                <span className="text-[12px] text-ink-strong font-semibold tabnum text-right">{fmtCurrency(b.revenue)}</span>
-                <span className="text-[11px] text-ink-faint tabnum font-mono text-right">{b.count}</span>
+                <span className="text-[11px] sm:text-[12px] text-ink-strong font-semibold tabnum text-right">{fmtCurrency(b.revenue)}</span>
+                <span className="text-[10px] sm:text-[11px] text-ink-faint tabnum font-mono text-right">{b.count}</span>
               </div>
             );
           })}

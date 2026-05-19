@@ -128,6 +128,18 @@ export function isSamlEnabled(): boolean {
   return process.env.AUTH_METHOD === "saml";
 }
 
+/**
+ * Returns the IdP-initiated SSO URL if configured.
+ * Workaround for SP-initiated 403 quirks: instead of generating an AuthnRequest, send
+ * the user directly to Google's IdP-initiated SSO endpoint, which posts the SAMLResponse
+ * straight to our ACS. Same end result, no AuthnRequest from us.
+ *
+ * URL pattern: https://accounts.google.com/o/saml2/initsso?idpid={IDPID}&spid={SPID}&forceauthn=false
+ */
+export function getIdpInitiatedUrl(): string | null {
+  return process.env.SAML_IDP_INITIATED_URL ?? null;
+}
+
 /** Build a SP-initiated SSO redirect URL — user agent is sent here to start SAML SSO. */
 export async function buildLoginRedirect(): Promise<string> {
   const { sp, idp } = ensureInit();
@@ -171,7 +183,10 @@ export async function processAcsResponse(formBody: URLSearchParams): Promise<{
       ? [rawGroups]
       : [];
 
-  // Map group → role (highest wins)
+  // Map group → role (highest wins). If user is in no group, fall back to default role.
+  // SAML_DEFAULT_ROLE controls what unrouped users get:
+  //   - "admin" / "editor" / "viewer" — anyone who authenticates via SAML gets that role
+  //   - "deny" or unset — require group membership (original strict behavior)
   const normalize = (g: string) => g.trim().toLowerCase();
   const groupSet = new Set(groups.map(normalize));
   let role: SamlRole | null = null;
@@ -180,9 +195,14 @@ export async function processAcsResponse(formBody: URLSearchParams): Promise<{
   else if (groupSet.has(normalize(config.groupViewer))) role = "viewer";
 
   if (!role) {
-    throw new Error(
-      `Access denied for ${email}: not a member of any role group (${config.groupAdmin} / ${config.groupEditor} / ${config.groupViewer}). Groups received: ${groups.join(", ") || "(none)"}.`,
-    );
+    const defaultRole = (process.env.SAML_DEFAULT_ROLE ?? "deny").toLowerCase();
+    if (defaultRole === "admin" || defaultRole === "editor" || defaultRole === "viewer") {
+      role = defaultRole as SamlRole;
+    } else {
+      throw new Error(
+        `Access denied for ${email}: not a member of any role group (${config.groupAdmin} / ${config.groupEditor} / ${config.groupViewer}). Groups received: ${groups.join(", ") || "(none)"}. To allow all SAML-authenticated users without group check, set SAML_DEFAULT_ROLE=admin (or editor/viewer).`,
+      );
+    }
   }
 
   return { email, name, role, groups };

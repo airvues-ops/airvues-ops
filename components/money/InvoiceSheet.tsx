@@ -50,7 +50,7 @@ export function InvoiceSheet({ invoice, onClose, onFilterByPayer }: Props) {
       />
 
       <aside
-        className="fixed top-0 right-0 bottom-0 w-[460px] bg-surface z-50 border-l border-rule shadow-xl overflow-y-auto"
+        className="fixed top-0 right-0 bottom-0 w-full sm:w-[460px] bg-surface z-50 border-l border-rule shadow-xl overflow-y-auto"
         role="dialog"
         aria-label={`Invoice ${invoice.invoiceId ?? ""}`}
       >

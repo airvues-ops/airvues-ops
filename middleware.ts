@@ -15,6 +15,10 @@ import { SAML_COOKIE_NAME } from "@/lib/samlSession";
 const DEV_PREVIEW =
   process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW === "true";
 
+// AUTH_BYPASS: kill switch for auth (works in production too). Set when SAML/OAuth
+// are off and the app should be open. Skips the redirect-to-login gate entirely.
+const AUTH_BYPASS = process.env.AUTH_BYPASS === "true";
+
 const NEXTAUTH_COOKIE_NAMES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
@@ -54,7 +58,7 @@ export default async function middleware(req: NextRequest) {
     nextUrl.pathname.startsWith("/_next") ||
     nextUrl.pathname === "/favicon.ico";
 
-  if (DEV_PREVIEW) {
+  if (DEV_PREVIEW || AUTH_BYPASS) {
     return NextResponse.next();
   }
 

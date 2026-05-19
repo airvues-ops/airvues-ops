@@ -21,14 +21,18 @@ const fmtCurrency = (n: number) =>
 const fmtPercent = (n: number, decimals = 0) =>
   `${(n * 100).toFixed(decimals)}%`;
 
-/** YTD revenue: SUM(Invoice Amount) WHERE Status='paid' AND Date >= YEAR_START */
+/** YTD revenue: SUM(Invoice Amount) WHERE Status='paid' AND Date >= YEAR_START.
+ *  Note: target is annual ($500K), so we also compute pace (% of year done vs %
+ *  of target reached) and what's needed/month to catch up. */
 export async function revenueYtd(): Promise<KpiResult> {
-  const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const now = new Date();
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const yearStartISO = yearStart.toISOString().slice(0, 10);
   const t = Tables.Invoices;
   const records = await listRecordsCached<{ "Invoice Amount"?: number; "Invoice Status"?: string; Date?: string }>(
     t.id,
     {
-      filterByFormula: `AND({Invoice Status} = 'paid', IS_AFTER({Date}, '${yearStart}'))`,
+      filterByFormula: `AND({Invoice Status} = 'paid', IS_AFTER({Date}, '${yearStartISO}'))`,
       fields: [t.fields["Invoice Amount"].id, t.fields["Invoice Status"].id, t.fields["Date"].id],
       returnFieldsByFieldId: false,
     },
@@ -36,13 +40,29 @@ export async function revenueYtd(): Promise<KpiResult> {
   );
   const total = records.reduce((sum, r) => sum + (r.fields["Invoice Amount"] || 0), 0);
   const target = 500_000;
+
+  // Pace calculation
+  const daysInYear = 365;
+  const daysIntoYear = Math.floor((now.getTime() - yearStart.getTime()) / 86_400_000);
+  const requiredByNow = target * (daysIntoYear / daysInYear);
+  const aheadOrBehind = total - requiredByNow;
+  const remainingDays = daysInYear - daysIntoYear;
+  const remainingMonths = remainingDays / 30.44;
+  const needPerMonth = remainingMonths > 0 ? (target - total) / remainingMonths : 0;
+
+  const pacingNote =
+    aheadOrBehind >= 0
+      ? `Ahead of pace by ${fmtCurrency(aheadOrBehind)}`
+      : `Behind pace by ${fmtCurrency(-aheadOrBehind)} · need ${fmtCurrency(needPerMonth)}/mo`;
+
   return {
     value: total,
     formatted: fmtCurrency(total),
     delta: null,
     target,
     targetLabel: `${Math.round((total / target) * 100)}% of ${fmtCurrency(target)}`,
-    asOf: new Date(),
+    asOf: now,
+    note: pacingNote,
   };
 }
 
@@ -72,19 +92,42 @@ export async function mrr(): Promise<KpiResult> {
   };
 }
 
-/** On retainer %: COUNT(Membership AND Active) / COUNT(Active) over Companies */
+/** On retainer %: count distinct payers with an active subscribed Recurring invoice,
+ *  divided by count of Active companies. Uses Invoices.Recurring as the source of truth
+ *  (Companies.Contract Type=Membership was the legacy field but is never populated). */
 export async function onRetainerPct(): Promise<KpiResult> {
-  const t = Tables.Companies;
-  const all = await listRecordsCached<{ "Engagement Frequency"?: string; "Contract Type"?: string }>(
-    t.id,
-    {
-      fields: [t.fields["Engagement Frequency"].id, t.fields["Contract Type"].id],
-    },
-    ["kpi:retainer"],
-  );
-  const active = all.filter((r) => r.fields["Engagement Frequency"] === "Active");
-  const onRetainer = active.filter((r) => r.fields["Contract Type"] === "Membership");
-  const ratio = active.length === 0 ? 0 : onRetainer.length / active.length;
+  const iT = Tables.Invoices;
+  const cT = Tables.Companies;
+
+  const [recurringInvoices, allCompanies] = await Promise.all([
+    listRecordsCached<{ "Invoice Status"?: string; "Invoice Payer"?: string[] }>(
+      iT.id,
+      {
+        filterByFormula: `AND({Invoice Type} = 'Recurring', {Invoice Status} = 'subscribed')`,
+        fields: [
+          iT.fields["Invoice Status"].id,
+          iT.fields["Invoice Payer"].id,
+          iT.fields["Invoice Type"].id,
+        ],
+      },
+      ["kpi:retainer-invoices"],
+    ),
+    listRecordsCached<{ "Engagement Frequency"?: string }>(
+      cT.id,
+      { fields: [cT.fields["Engagement Frequency"].id] },
+      ["kpi:retainer-companies"],
+    ),
+  ]);
+
+  // Count distinct Payers across active Recurring subscriptions
+  const distinctPayers = new Set<string>();
+  for (const inv of recurringInvoices) {
+    const payers = (inv.fields["Invoice Payer"] as string[] | undefined) ?? [];
+    for (const p of payers) distinctPayers.add(p);
+  }
+  const onRetainerCount = distinctPayers.size;
+  const activeCount = allCompanies.filter((r) => r.fields["Engagement Frequency"] === "Active").length;
+  const ratio = activeCount === 0 ? 0 : onRetainerCount / activeCount;
   const target = 0.5;
   return {
     value: ratio,
@@ -93,7 +136,26 @@ export async function onRetainerPct(): Promise<KpiResult> {
     target,
     targetLabel: `Target ${fmtPercent(target)}`,
     asOf: new Date(),
-    note: `${onRetainer.length} of ${active.length} active clients on retainer`,
+    note: `${onRetainerCount} of ${activeCount} active clients on retainer`,
+  };
+}
+
+/** Raw company goals data — YTD revenue $, distinct retainer count, active company count.
+ *  Reuses the same Airtable reads as revenueYtd + onRetainerPct via unstable_cache dedupe. */
+export async function companyGoalsData(): Promise<{
+  ytdRevenue: number;
+  retainerCount: number;
+  activeClients: number;
+}> {
+  const [revenue, retainer] = await Promise.all([revenueYtd(), onRetainerPct()]);
+  // onRetainerPct note format: "X of Y active clients on retainer"
+  const m = retainer.note?.match(/^(\d+) of (\d+)/);
+  const retainerCount = m ? parseInt(m[1], 10) : 0;
+  const activeClients = m ? parseInt(m[2], 10) : 0;
+  return {
+    ytdRevenue: revenue.value ?? 0,
+    retainerCount,
+    activeClients,
   };
 }
 
@@ -125,12 +187,11 @@ export async function sprintDelivery(): Promise<KpiResult> {
 
   // For each sprint, fetch its linked stories & status
   const ratios: number[] = [];
+  let sprintsWithStories = 0;
   for (const sp of doneSprints) {
     const storyIds = sp.fields.Stories || [];
-    if (storyIds.length === 0) {
-      ratios.push(0);
-      continue;
-    }
+    if (storyIds.length === 0) continue; // skip — can't compute ratio for sprint with no Stories linked
+    sprintsWithStories += 1;
     const filter = `OR(${storyIds.map((id) => `RECORD_ID() = '${id}'`).join(",")})`;
     const stories = await listRecordsCached<{ "Story Status"?: string }>(
       storiesT.id,
@@ -144,8 +205,21 @@ export async function sprintDelivery(): Promise<KpiResult> {
     ratios.push(stories.length === 0 ? 0 : done / stories.length);
   }
 
+  // If we fetched done sprints but NONE of them have Stories linked, the metric is
+  // not "0%" — it's "we can't compute it because Sprint→Stories link is broken."
+  if (ratios.length === 0) {
+    return {
+      value: null,
+      formatted: "—",
+      delta: null,
+      asOf: new Date(),
+      note: `${doneSprints.length} done sprints in base · 0 have Stories linked — data hygiene issue`,
+    };
+  }
+
   const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
   const target = 0.9;
+  const incomplete = doneSprints.length - sprintsWithStories;
   return {
     value: avg,
     formatted: fmtPercent(avg),
@@ -153,7 +227,10 @@ export async function sprintDelivery(): Promise<KpiResult> {
     target,
     targetLabel: `Target ${fmtPercent(target)}`,
     asOf: new Date(),
-    note: `Last ${ratios.length} done sprints`,
+    note:
+      incomplete > 0
+        ? `Last ${ratios.length} done sprints · ${incomplete} sprint${incomplete === 1 ? "" : "s"} skipped (no Story links)`
+        : `Last ${ratios.length} done sprints`,
   };
 }
 
@@ -183,13 +260,15 @@ export type ArAgingBuckets = {
   grandCount: number;
 };
 
-/** AR Aging — outstanding invoices bucketed by days since Invoice Status Last Modified. */
+/** AR Aging — outstanding invoices bucketed by days since invoice Date (issue date).
+ *  Previously bucketed by Invoice Status Last Modified, which under-reports aging
+ *  for invoices created at one status and never re-touched. */
 export async function arAging(): Promise<ArAgingBuckets> {
   const t = Tables.Invoices;
   const records = await listRecordsCached<{
     "Invoice Amount"?: number;
     "Invoice Status"?: string;
-    "Invoice Status Last Modified"?: string;
+    Date?: string;
   }>(
     t.id,
     {
@@ -197,7 +276,7 @@ export async function arAging(): Promise<ArAgingBuckets> {
       fields: [
         t.fields["Invoice Amount"].id,
         t.fields["Invoice Status"].id,
-        t.fields["Invoice Status Last Modified"].id,
+        t.fields["Date"].id,
       ],
     },
     ["kpi:ar-aging"],
@@ -214,9 +293,9 @@ export async function arAging(): Promise<ArAgingBuckets> {
   let grandCount = 0;
   for (const rec of records) {
     const amt = rec.fields["Invoice Amount"] || 0;
-    const lm = rec.fields["Invoice Status Last Modified"];
-    if (!lm) continue;
-    const days = Math.floor((now - new Date(lm).getTime()) / 86_400_000);
+    const date = rec.fields["Date"];
+    if (!date) continue;
+    const days = Math.floor((now - new Date(date).getTime()) / 86_400_000);
     const idx = ranges.findIndex((r) => days >= r.min && days < r.max);
     if (idx === -1) continue;
     buckets[idx].count += 1;
@@ -227,14 +306,17 @@ export async function arAging(): Promise<ArAgingBuckets> {
   return { buckets, grandTotal, grandCount };
 }
 
-export type TopClient = { name: string; email: string; total: number; count: number };
+export type TopClient = { name: string; email: string; total: number; count: number; isOrphan?: boolean };
 
-/** Top revenue clients — sum of paid invoices grouped by Invoice Payer email. */
+/** Top revenue clients — sum of paid invoices grouped by Invoice Payer.
+ *  Invoices with NO Invoice Payer link (legacy Fiverr-era orphans) are grouped
+ *  into a single "(no payer · legacy)" bucket so the totals reconcile to lifetime revenue. */
 export async function topRevenueClients(limit = 10): Promise<TopClient[]> {
   const t = Tables.Invoices;
   const records = await listRecordsCached<{
     "Invoice Amount"?: number;
     "Invoice Status"?: string;
+    "Invoice Payer"?: string[];
   }>(
     t.id,
     {
@@ -243,27 +325,38 @@ export async function topRevenueClients(limit = 10): Promise<TopClient[]> {
         t.fields["Invoice Amount"].id,
         t.fields["Invoice Status"].id,
         t.fields["Invoice Payer"].id,
-        t.fields["Stripe Customer ID (from Invoice Payer)"].id,
         t.fields["Invoice Identifier"].id,
       ],
     },
     ["kpi:top-clients"],
   );
-  // Group by Invoice Identifier (formula `${id}-${PayerName} | ${amount}`) — extract payer name
+
   const byPayer = new Map<string, TopClient>();
+  const ORPHAN_KEY = "(no payer · legacy)";
+
   for (const rec of records) {
     const f = rec.fields as Record<string, unknown>;
+    const payerLinks = (f["Invoice Payer"] as string[] | undefined) ?? [];
     const identifier = (f["Invoice Identifier"] as string | undefined) ?? "";
-    // Identifier format: `{InvoiceID}-{Payer Name} | ${Amount}`
-    const match = identifier.match(/^\d+-([^|]+?)\s*\|/);
-    const name = (match ? match[1].trim() : "(unknown)") || "(unknown)";
     const amt = (f["Invoice Amount"] as number | undefined) || 0;
-    const existing = byPayer.get(name);
+
+    let key: string;
+    let isOrphan = false;
+    if (payerLinks.length === 0) {
+      key = ORPHAN_KEY;
+      isOrphan = true;
+    } else {
+      // Extract payer name from Invoice Identifier formula: `{ID}-{Payer Name} | ${Amount}`
+      const match = identifier.match(/^\d+-([^|]+?)\s*\|/);
+      key = (match ? match[1].trim() : "(unnamed payer)") || "(unnamed payer)";
+    }
+
+    const existing = byPayer.get(key);
     if (existing) {
       existing.total += amt;
       existing.count += 1;
     } else {
-      byPayer.set(name, { name, email: "", total: amt, count: 1 });
+      byPayer.set(key, { name: key, email: "", total: amt, count: 1, isOrphan });
     }
   }
   return Array.from(byPayer.values())

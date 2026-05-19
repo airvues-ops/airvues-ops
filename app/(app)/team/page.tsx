@@ -12,7 +12,7 @@ export default async function TeamPage() {
   }
 
   return (
-    <main className="max-w-[1600px] mx-auto px-6 py-5">
+    <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
       <PageHeader
         title="Team"
         subtitle="Active headcount · payments owed · onboarding · routing problems"

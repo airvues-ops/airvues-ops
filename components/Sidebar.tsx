@@ -1,16 +1,12 @@
 // Left sidebar nav — operational dashboard rail.
+// Routes come from lib/nav.ts (single source of truth); icons are mapped locally.
 import Link from "next/link";
 import { signOut } from "@/lib/auth";
 import { getAppSession, isDevPreview } from "@/lib/session";
 import { isSamlEnabled } from "@/lib/saml";
 import { cookies } from "next/headers";
 import { SAML_COOKIE_NAME } from "@/lib/samlSession";
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-};
+import { NAV_ITEMS } from "@/lib/nav";
 
 function IconDollar() {
   return (
@@ -64,15 +60,65 @@ function IconBriefcase() {
     </svg>
   );
 }
+function IconCode() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="16 18 22 12 16 6" />
+      <polyline points="8 6 2 12 8 18" />
+    </svg>
+  );
+}
+function IconUser() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="5" />
+      <path d="M3 21v-2a7 7 0 0 1 14 0v2" />
+    </svg>
+  );
+}
+function IconList() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+function IconCalendar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
+}
+function IconShield() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
 
-const NAV: NavItem[] = [
-  { href: "/", label: "Home", icon: <IconHome /> },
-  { href: "/money", label: "Earnings", icon: <IconDollar /> },
-  { href: "/pipeline", label: "Sales Pipeline", icon: <IconChart /> },
-  { href: "/clients", label: "Clients", icon: <IconBriefcase /> },
-  { href: "/team", label: "Team", icon: <IconUsers /> },
-  { href: "/stack", label: "Stack", icon: <IconLayers /> },
-];
+const ICONS: Record<string, React.ReactNode> = {
+  "/": <IconHome />,
+  "/me": <IconUser />,
+  "/money": <IconDollar />,
+  "/pipeline": <IconChart />,
+  "/engineering": <IconCode />,
+  "/backlog": <IconList />,
+  "/sprints": <IconCalendar />,
+  "/clients": <IconBriefcase />,
+  "/team": <IconUsers />,
+  "/stack": <IconLayers />,
+  "/hygiene": <IconShield />,
+};
 
 export async function Sidebar() {
   const session = await getAppSession();
@@ -89,7 +135,7 @@ export async function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[208px] bg-sidebar border-r border-rule flex flex-col z-40">
+    <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-[208px] bg-sidebar border-r border-rule flex-col z-40">
       {/* Brand */}
       <div className="px-5 pt-5 pb-6">
         <div className="text-[15px] font-semibold text-ink-strong">Airvues</div>
@@ -99,14 +145,14 @@ export async function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3">
         <ul className="space-y-1">
-          {NAV.map((item) => (
+          {NAV_ITEMS.filter((n) => n.showInSidebar).map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
                 className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-ink-muted hover:text-ink-strong hover:bg-surface/60 rounded-md transition-colors group"
               >
                 <span className="text-ink-faint group-hover:text-ink-muted transition-colors">
-                  {item.icon}
+                  {ICONS[item.href]}
                 </span>
                 <span>{item.label}</span>
               </Link>
@@ -147,9 +193,6 @@ export async function Sidebar() {
             </button>
           </form>
         )}
-        <div className="px-2.5 pt-2 text-[10px] font-mono text-ink-faint tracking-wider uppercase">
-          Week 1 · v0.1
-        </div>
       </div>
     </aside>
   );

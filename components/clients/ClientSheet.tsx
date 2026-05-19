@@ -37,7 +37,7 @@ export function ClientSheet({ client, onClose }: Props) {
   return (
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} aria-hidden="true" />
-      <aside className="fixed top-0 right-0 bottom-0 w-[460px] bg-surface z-50 border-l border-rule shadow-xl overflow-y-auto" role="dialog">
+      <aside className="fixed top-0 right-0 bottom-0 w-full sm:w-[460px] bg-surface z-50 border-l border-rule shadow-xl overflow-y-auto" role="dialog">
         <div className="sticky top-0 bg-surface border-b border-rule px-5 py-3 flex items-center justify-between gap-3 z-10">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-ink-muted">Client</div>

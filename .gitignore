@@ -42,3 +42,6 @@ yarn-error.log*
 
 # SAML SP signing keypair (never commit)
 saml-sp-*.pem
+
+# Hygiene script outputs — contain client names + revenue numbers
+scripts/output/

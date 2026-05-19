@@ -1,14 +1,9 @@
 // Session helper. Resolves the current user via (in order):
-//   1. DEV_PREVIEW bypass (dev only)
-//   2. SAML session cookie (set by /api/auth/saml/sso after Google Workspace SSO)
-//   3. NextAuth Google OAuth session (legacy / fallback)
+//   1. DEV_PREVIEW / AUTH_BYPASS (synthetic Lee — dev or kill switch)
+//   2. NextAuth Google OAuth session (primary, since the OAuth flip on 2026-05-18)
+//   3. SAML session cookie (legacy fallback for any lingering sessions from the password era)
 //
-// Both auth flows produce the same AppSession shape so all pages/components work unchanged.
-//
-// DEV_PREVIEW MODE:
-//   When NODE_ENV !== 'production' AND process.env.DEV_PREVIEW === 'true',
-//   returns a synthetic Lee-as-admin session. Bypasses auth entirely.
-//   Middleware also checks this; in production it's ignored.
+// Both surviving auth flows produce the same AppSession shape so all pages work unchanged.
 
 import "server-only";
 import { cookies } from "next/headers";
@@ -18,6 +13,11 @@ import { SAML_COOKIE_NAME, verifySamlSession } from "./samlSession";
 
 const DEV_PREVIEW =
   process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW === "true";
+
+// AUTH_BYPASS: kill switch that disables ALL auth (even in production).
+// Returns the synthetic Lee admin session to everyone. Use only when SAML/OAuth
+// are intentionally turned off and the app should be accessible without login.
+const AUTH_BYPASS = process.env.AUTH_BYPASS === "true";
 
 export type AppSession = {
   user: {
@@ -37,11 +37,29 @@ const SYNTHETIC_LEE_SESSION: AppSession = {
 };
 
 export async function getAppSession(): Promise<AppSession> {
-  if (DEV_PREVIEW) {
+  if (DEV_PREVIEW || AUTH_BYPASS) {
     return SYNTHETIC_LEE_SESSION;
   }
 
-  // 1. SAML cookie takes precedence — set by Google Workspace SSO callback
+  // 1. NextAuth Google OAuth — primary auth path
+  try {
+    const s = await auth();
+    if (s?.user?.email && (s.user as { role?: AppRole }).role) {
+      return {
+        user: {
+          email: s.user.email,
+          name: s.user.name,
+          image: s.user.image,
+          role: (s.user as { role: AppRole }).role,
+        },
+      };
+    }
+  } catch {
+    // fall through to SAML cookie
+  }
+
+  // 2. SAML cookie — legacy fallback. Anyone still holding a SAML cookie from a
+  //    previous password session continues to work until it expires.
   try {
     const cookieStore = await cookies();
     const samlToken = cookieStore.get(SAML_COOKIE_NAME)?.value;
@@ -58,20 +76,10 @@ export async function getAppSession(): Promise<AppSession> {
       }
     }
   } catch {
-    // fall through to NextAuth
+    // no session
   }
 
-  // 2. NextAuth Google OAuth fallback
-  const s = await auth();
-  if (!s?.user?.email || !(s.user as any).role) return null;
-  return {
-    user: {
-      email: s.user.email,
-      name: s.user.name,
-      image: s.user.image,
-      role: (s.user as any).role as AppRole,
-    },
-  };
+  return null;
 }
 
-export const isDevPreview = DEV_PREVIEW;
+export const isDevPreview = DEV_PREVIEW || AUTH_BYPASS;
