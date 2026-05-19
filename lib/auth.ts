@@ -117,12 +117,13 @@ async function refreshGoogleAccessToken(refreshToken: string): Promise<{
 }
 
 // Scopes requested from Google. openid+email+profile are default; we add
-// calendar.readonly so the TopBar can show the user's upcoming meetings.
+// calendar.readonly + gmail.readonly so the TopBar can surface meetings + inbox.
 const GOOGLE_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/gmail.readonly",
 ].join(" ");
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
