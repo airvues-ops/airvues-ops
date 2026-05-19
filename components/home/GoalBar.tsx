@@ -78,11 +78,11 @@ export function GoalBar({
         </div>
       </div>
 
-      {/* The bar */}
+      {/* The bar — fills from 0 to target on mount */}
       <div className="relative h-2.5 bg-bg-elevated rounded-full overflow-hidden">
         <div
-          className={`h-full ${TONE_FILL[tone]} rounded-full transition-all duration-700`}
-          style={{ width: `${displayPct}%` }}
+          className={`h-full ${TONE_FILL[tone]} rounded-full motion-safe:animate-fill-bar`}
+          style={{ width: `${displayPct}%`, ["--fill-target" as never]: `${displayPct}%` }}
         />
         {stretchPct != null && stretchPct > 100 && (
           <div

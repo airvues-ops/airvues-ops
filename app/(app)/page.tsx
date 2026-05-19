@@ -42,26 +42,45 @@ export default async function HomePage() {
 
   return (
     <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
-      <PageHeader
-        title={`Welcome, ${name}.`}
-        subtitle="A snapshot of the firm. Click any tile to drill in."
-        meta={
-          <>
+      <header className="relative mb-8 pb-5 border-b border-rule">
+        <div className="flex items-center justify-between gap-6 flex-wrap">
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-ink-faint mb-2">
+              Operations control plane
+            </div>
+            <h1 className="text-[28px] sm:text-[34px] font-semibold text-ink-strong leading-tight tracking-tight">
+              Welcome, <span className="text-emerald">{name}</span>.
+            </h1>
+            <p className="text-[13px] text-ink-muted mt-1 max-w-2xl">
+              A snapshot of the firm. Click any tile to drill in.
+            </p>
+          </div>
+          <div className="text-right text-[12px] text-ink-muted leading-snug shrink-0">
             <div className="font-mono tabnum">
               {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </div>
             <div className="text-[11px] text-ink-faint mt-0.5">5-min cache</div>
-          </>
-        }
-      />
+          </div>
+        </div>
+        <div
+          className="absolute bottom-0 left-0 right-0 h-px"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, rgba(34, 211, 168, 0.45), transparent 50%)",
+          }}
+          aria-hidden="true"
+        />
+      </header>
 
-      {/* KPI grid — every tile is a Link to its destination */}
+      {/* KPI grid — every tile is a Link to its destination. Dollar tiles count up on mount. */}
       <SectionTitle title="Key indicators" aside="Click any tile to drill in" />
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
         <HomeKpiCard
           href="/money?status=paid"
           label="YTD Revenue"
           value={"value" in revenue ? revenue.formatted : "—"}
+          numericValue={"value" in revenue ? revenue.value : null}
+          format={fmtCurrency}
           sub={
             "value" in revenue
               ? `${revenue.targetLabel ?? ""} · ${revenue.note ?? ""}`.replace(/^ · | · $/g, "")
@@ -73,6 +92,8 @@ export default async function HomePage() {
           href="/money?type=Recurring"
           label="MRR"
           value={"value" in mrrR ? mrrR.formatted : "—"}
+          numericValue={"value" in mrrR ? mrrR.value : null}
+          format={fmtCurrency}
           sub={"value" in mrrR ? mrrR.targetLabel : "—"}
           title="Recurring invoices paid this month — see /money filtered to Recurring"
         />
@@ -80,6 +101,8 @@ export default async function HomePage() {
           href="/money?status=open"
           label="Open AR"
           value={"total" in receivables ? fmtCurrency(receivables.total) : "—"}
+          numericValue={"total" in receivables ? receivables.total : null}
+          format={fmtCurrency}
           sub={
             "count" in receivables
               ? `${receivables.count} unpaid${receivables.overdue > 0 ? ` · ${receivables.overdue} past due` : ""}`

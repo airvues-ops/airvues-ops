@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         samlActive={samlActive}
         signOutAction={doSignOut}
       />
-      <div className="md:ml-[208px] min-h-screen">{children}</div>
+      <div className="md:ml-[208px] min-h-screen page-enter">{children}</div>
     </>
   );
 }

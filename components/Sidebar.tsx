@@ -7,7 +7,7 @@ import { getAppSession, isDevPreview } from "@/lib/session";
 import { isSamlEnabled } from "@/lib/saml";
 import { cookies } from "next/headers";
 import { SAML_COOKIE_NAME } from "@/lib/samlSession";
-import { NAV_ITEMS } from "@/lib/nav";
+import { SidebarNav } from "./SidebarNav";
 
 function IconDollar() {
   return (
@@ -153,24 +153,7 @@ export async function Sidebar() {
         </div>
       </Link>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3">
-        <ul className="space-y-1">
-          {NAV_ITEMS.filter((n) => n.showInSidebar).map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-ink-muted hover:text-ink-strong hover:bg-surface/60 rounded-md transition-colors group"
-              >
-                <span className="text-ink-faint group-hover:text-ink-muted transition-colors">
-                  {ICONS[item.href]}
-                </span>
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <SidebarNav icons={ICONS} />
 
       {/* Footer / user */}
       <div className="px-3 pb-3 pt-2 border-t border-rule mt-2 space-y-2">
