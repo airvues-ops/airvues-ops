@@ -66,8 +66,19 @@ declare module "next-auth" {
     user: {
       role: AppRole;
     } & DefaultSession["user"];
+    accessToken?: string;
+    accessTokenExpires?: number;
   }
 }
+
+// Scopes requested from Google. openid+email+profile are default; we add
+// calendar.readonly so the TopBar can show the user's upcoming meetings.
+const GOOGLE_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/calendar.readonly",
+].join(" ");
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -76,10 +87,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
       authorization: {
         params: {
-          // No `hd` restriction — ALLOWED_USERS allowlist is the gate. This lets
-          // leetsao1@gmail.com (personal Gmail) and any future client portal users
-          // sign in without changing the consent flow.
           prompt: "select_account",
+          scope: GOOGLE_SCOPES,
+          access_type: "offline", // gives us a refresh_token on first consent
         },
       },
     }),
@@ -97,17 +107,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user }) {
-      // First sign-in: set the role on the JWT. Persists across requests.
+    async jwt({ token, user, account }) {
+      // First sign-in: persist role + access token (for calendar API calls).
       if (user?.email) {
         const role = findRole(user.email);
         if (role) token.role = role;
+      }
+      if (account) {
+        token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
       }
       return token;
     },
     async session({ session, token }) {
       if (token.role && session.user) {
         session.user.role = token.role as AppRole;
+      }
+      if (token.accessToken) {
+        session.accessToken = token.accessToken as string;
+        session.accessTokenExpires = token.accessTokenExpires as number | undefined;
       }
       return session;
     },
