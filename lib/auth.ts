@@ -87,9 +87,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
       authorization: {
         params: {
-          prompt: "select_account",
+          // `consent` forces Google to RE-ISSUE a new access_token + refresh_token
+          // every sign-in. Without this, returning users skip consent and Google
+          // does NOT return tokens, so token.accessToken stays undefined.
+          prompt: "consent",
           scope: GOOGLE_SCOPES,
-          access_type: "offline", // gives us a refresh_token on first consent
+          access_type: "offline",
         },
       },
     }),
@@ -114,9 +117,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (role) token.role = role;
       }
       if (account) {
+        // eslint-disable-next-line no-console
+        console.log("[auth.jwt] account present", {
+          provider: account.provider,
+          hasAccess: !!account.access_token,
+          hasRefresh: !!account.refresh_token,
+          scope: account.scope,
+          expiresAt: account.expires_at,
+        });
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
+        token.scope = account.scope;
       }
       return token;
     },
