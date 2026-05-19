@@ -2,9 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 
+export type TickerFormat = "currency" | "percent" | "number";
+
+const FORMATTERS: Record<TickerFormat, (n: number) => string> = {
+  currency: (n) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n),
+  percent: (n) => `${Math.round(n)}%`,
+  number: (n) => new Intl.NumberFormat("en-US").format(Math.round(n)),
+};
+
 type Props = {
   value: number;
-  format: (n: number) => string;
+  format: TickerFormat;
   duration?: number;
   delay?: number;
 };
@@ -50,5 +63,5 @@ export function NumberTicker({ value, format, duration = 900, delay = 0 }: Props
     };
   }, [value, duration, delay]);
 
-  return <span suppressHydrationWarning>{format(display)}</span>;
+  return <span suppressHydrationWarning>{FORMATTERS[format](display)}</span>;
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { NumberTicker } from "@/components/ui/NumberTicker";
+import { NumberTicker, type TickerFormat } from "@/components/ui/NumberTicker";
 
 type Props = {
   href: string;
@@ -8,11 +8,11 @@ type Props = {
   sub?: React.ReactNode;
   title?: string;
   /**
-   * If provided, the value will count up from 0 on mount, formatted with `format`.
+   * If provided, the value counts up from 0 on mount using the named formatter.
    * `value` is still used for SSR / no-JS / reduced-motion fallback.
    */
   numericValue?: number | null;
-  format?: (n: number) => string;
+  format?: TickerFormat;
 };
 
 export function HomeKpiCard({ href, label, value, sub, title, numericValue, format }: Props) {

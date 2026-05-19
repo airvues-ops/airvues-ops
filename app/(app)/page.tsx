@@ -88,7 +88,7 @@ export default async function HomePage() {
           label="YTD Revenue"
           value={"value" in revenue ? revenue.formatted : "—"}
           numericValue={"value" in revenue ? revenue.value : null}
-          format={fmtCurrency}
+          format="currency"
           sub={
             "value" in revenue
               ? `${revenue.targetLabel ?? ""} · ${revenue.note ?? ""}`.replace(/^ · | · $/g, "")
@@ -101,7 +101,7 @@ export default async function HomePage() {
           label="MRR"
           value={"value" in mrrR ? mrrR.formatted : "—"}
           numericValue={"value" in mrrR ? mrrR.value : null}
-          format={fmtCurrency}
+          format="currency"
           sub={"value" in mrrR ? mrrR.targetLabel : "—"}
           title="Recurring invoices paid this month"
         />
@@ -110,7 +110,7 @@ export default async function HomePage() {
           label="Open AR"
           value={"total" in receivables ? fmtCurrency(receivables.total) : "—"}
           numericValue={"total" in receivables ? receivables.total : null}
-          format={fmtCurrency}
+          format="currency"
           sub={
             "count" in receivables
               ? `${receivables.count} unpaid${receivables.overdue > 0 ? ` · ${receivables.overdue} past due` : ""}`
