@@ -117,18 +117,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (role) token.role = role;
       }
       if (account) {
-        // eslint-disable-next-line no-console
-        console.log("[auth.jwt] account present", {
-          provider: account.provider,
-          hasAccess: !!account.access_token,
-          hasRefresh: !!account.refresh_token,
-          scope: account.scope,
-          expiresAt: account.expires_at,
-        });
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
-        token.scope = account.scope;
       }
       return token;
     },
