@@ -1,24 +1,15 @@
-// Grand Central — the post-login landing. KPIs · 2026 Goals · Departures · Arrivals · The Stack · Jump to.
+// Grand Central — personal-first daily landing.
+// 1) Greeting + status line  2) Your day (calendar + stories)  3) The Board (team operational)
+// 4) THE STACK  5) Small firm snapshot strip at the bottom.
 import { getAppSession } from "@/lib/session";
-import { companyGoalsData, mrr, onRetainerPct, openReceivables, revenueYtd, sprintDelivery } from "@/lib/kpi";
+import { mrr, openReceivables, revenueYtd } from "@/lib/kpi";
 import { getLandingBoards } from "@/lib/landing";
+import { resolvePersonByEmail } from "@/lib/people";
+import { getPersonalDay } from "@/lib/personal-landing";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { CompanyGoals } from "@/components/home/CompanyGoals";
-import { HomeKpiCard } from "@/components/home/HomeKpiCard";
-import { HomeJumpCard } from "@/components/home/HomeJumpCard";
 import { StationBoard } from "@/components/home/DeparturesBoard";
 import { TheStack } from "@/components/home/TheStack";
-import { NAV_ITEMS } from "@/lib/nav";
-
-// Prefer the name Google handed us (e.g. "Lee Tsao") over the email local-part.
-// Falls back to a tidy capitalized version of the email username if name is missing.
-function firstName(name: string | null | undefined, email: string | null | undefined): string {
-  if (name && name.trim()) return name.trim().split(/\s+/)[0];
-  if (!email) return "there";
-  const local = email.split("@")[0];
-  const first = local.split(/[._-]/)[0];
-  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
-}
+import { YourDay } from "@/components/home/YourDay";
 
 async function safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
   try {
@@ -32,18 +23,30 @@ async function safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
 const fmtCurrency = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 
+function firstName(name: string | null | undefined, email: string | null | undefined): string {
+  if (name && name.trim()) return name.trim().split(/\s+/)[0];
+  if (!email) return "there";
+  const local = email.split("@")[0];
+  const first = local.split(/[._-]/)[0];
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+
 export default async function HomePage() {
   const session = await getAppSession();
-  const name = firstName(session?.user?.name, session?.user?.email);
+  const sessionName = session?.user?.name;
+  const sessionEmail = session?.user?.email;
 
-  const [revenue, mrrR, retainer, sprint, receivables, goals, boards] = await Promise.all([
+  const person = await safe(() => resolvePersonByEmail(sessionEmail));
+  const personId = person && "id" in person ? person.id : null;
+  const personName =
+    person && "firstName" in person ? person.firstName : firstName(sessionName, sessionEmail);
+
+  const [day, boards, revenue, mrrR, receivables] = await Promise.all([
+    safe(() => getPersonalDay(personId)),
+    safe(getLandingBoards),
     safe(revenueYtd),
     safe(mrr),
-    safe(onRetainerPct),
-    safe(sprintDelivery),
     safe(openReceivables),
-    safe(companyGoalsData),
-    safe(getLandingBoards),
   ]);
 
   const today = new Date();
@@ -53,25 +56,35 @@ export default async function HomePage() {
     day: "numeric",
   });
 
+  // Status line — what's actually on your plate today
+  const statusBits: string[] = [];
+  if ("todaysEvents" in day) {
+    statusBits.push(`${day.todaysEvents.length} meeting${day.todaysEvents.length === 1 ? "" : "s"} today`);
+    if (day.active.length > 0)
+      statusBits.push(`${day.active.length} stor${day.active.length === 1 ? "y" : "ies"} in flight`);
+    if (day.qa.length > 0) statusBits.push(`${day.qa.length} in QA`);
+  }
+  const statusLine = statusBits.join(" · ") || "Quiet day.";
+
   return (
     <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
-      {/* ── Greeting ─────────────────────────────────────────────── */}
-      <header className="relative mb-10 pb-6 border-b border-rule">
+      {/* ── Greeting ─────────────────────────────────────────── */}
+      <header className="relative mb-8 pb-5 border-b border-rule">
         <div className="flex items-end justify-between gap-6 flex-wrap">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-[0.22em] text-ink-faint mb-2">
               ◆ Operations control plane
             </div>
-            <h1 className="text-[32px] sm:text-[40px] lg:text-[48px] font-semibold text-ink-strong leading-[1.05] tracking-tight">
-              Welcome, <span className="text-emerald">{name}</span>.
+            <h1 className="text-[32px] sm:text-[40px] font-semibold text-ink-strong leading-[1.05] tracking-tight">
+              Welcome, <span className="text-emerald">{personName}</span>.
             </h1>
-            <p className="text-[13px] text-ink-muted mt-2 max-w-2xl">
-              Everything Airvues needs to run today — KPIs, what's leaving the platform, what just arrived, and where the team lives.
-            </p>
+            <p className="text-[13px] text-ink-muted mt-2 max-w-2xl">{statusLine}</p>
           </div>
           <div className="text-right text-[12px] text-ink-muted leading-snug shrink-0">
             <div className="font-mono tabnum uppercase tracking-wider">{dateStr}</div>
-            <div className="text-[10px] text-ink-faint mt-0.5 font-mono uppercase tracking-wider">5-min cache</div>
+            <div className="text-[10px] text-ink-faint mt-0.5 font-mono uppercase tracking-wider">
+              5-min cache
+            </div>
           </div>
         </div>
         <div
@@ -84,73 +97,22 @@ export default async function HomePage() {
         />
       </header>
 
-      {/* ── KPIs ────────────────────────────────────────────────── */}
-      <SectionTitle title="Key indicators" aside="Click any tile to drill in" />
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-10">
-        <HomeKpiCard
-          href="/money?status=paid"
-          label="YTD Revenue"
-          value={"value" in revenue ? revenue.formatted : "—"}
-          numericValue={"value" in revenue ? revenue.value : null}
-          format="currency"
-          sub={
-            "value" in revenue
-              ? `${revenue.targetLabel ?? ""} · ${revenue.note ?? ""}`.replace(/^ · | · $/g, "")
-              : "—"
-          }
-          title="Sum of paid invoice amount since Jan 1"
-        />
-        <HomeKpiCard
-          href="/money?type=Recurring"
-          label="MRR"
-          value={"value" in mrrR ? mrrR.formatted : "—"}
-          numericValue={"value" in mrrR ? mrrR.value : null}
-          format="currency"
-          sub={"value" in mrrR ? mrrR.targetLabel : "—"}
-          title="Recurring invoices paid this month"
-        />
-        <HomeKpiCard
-          href="/money?status=open"
-          label="Open AR"
-          value={"total" in receivables ? fmtCurrency(receivables.total) : "—"}
-          numericValue={"total" in receivables ? receivables.total : null}
-          format="currency"
-          sub={
-            "count" in receivables
-              ? `${receivables.count} unpaid${receivables.overdue > 0 ? ` · ${receivables.overdue} past due` : ""}`
-              : "—"
-          }
-          title="Invoices in open / sent / unsent / past due"
-        />
-        <HomeKpiCard
-          href="/sprints"
-          label="Sprint delivery"
-          value={"value" in sprint ? sprint.formatted : "—"}
-          sub={"value" in sprint ? sprint.note ?? undefined : undefined}
-          title="Last 4 done sprints' avg story-completion rate"
-        />
-        <HomeKpiCard
-          href="/clients"
-          label="On retainer"
-          value={"value" in retainer ? retainer.formatted : "—"}
-          sub={"value" in retainer ? retainer.note ?? undefined : undefined}
-          title="Distinct payers with active Recurring subscription / Active companies"
-        />
+      {/* ── Your day ─────────────────────────────────────────── */}
+      <div className="mb-10">
+        <SectionTitle title="Your day" aside="Today's agenda + stories in flight" />
+        {"todaysEvents" in day ? (
+          <YourDay day={day} />
+        ) : (
+          <div className="bg-surface border border-red/30 rounded-card p-4 text-[12px] text-red">
+            Failed to load personal data: {day.error}
+          </div>
+        )}
       </div>
 
-      {/* ── 2026 Goals ───────────────────────────────────────────── */}
-      {"ytdRevenue" in goals && (
-        <CompanyGoals
-          ytdRevenue={goals.ytdRevenue}
-          retainerCount={goals.retainerCount}
-          activeClients={goals.activeClients}
-        />
-      )}
-
-      {/* ── Departures + Arrivals ────────────────────────────────── */}
+      {/* ── The Board ────────────────────────────────────────── */}
       {"departures" in boards && (
         <div className="mb-10">
-          <SectionTitle title="The board" aside="Live operational state" />
+          <SectionTitle title="The board" aside="Team operational state" />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             <StationBoard
               title="Departures"
@@ -170,21 +132,55 @@ export default async function HomePage() {
         </div>
       )}
 
-      {/* ── The Stack ───────────────────────────────────────────── */}
+      {/* ── The Stack ────────────────────────────────────────── */}
       <div className="mb-10">
         <SectionTitle title="The stack" aside="External tools the team lives in" />
         <TheStack />
       </div>
 
-      {/* ── Jump to ─────────────────────────────────────────────── */}
+      {/* ── Firm snapshot — small strip at the bottom ────────── */}
       <div>
-        <SectionTitle title="Jump to" aside="Every page in this dashboard" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {NAV_ITEMS.filter((n) => n.showOnHome).map((card) => (
-            <HomeJumpCard key={card.href} href={card.href} title={card.label} desc={card.desc ?? ""} />
-          ))}
+        <SectionTitle title="Firm snapshot" aside="One line. Open Earnings for the full picture." />
+        <div className="bg-surface border border-rule rounded-card px-5 py-3 flex items-center gap-6 flex-wrap text-[12px]">
+          <SnapshotItem
+            label="YTD revenue"
+            value={"value" in revenue && revenue.value != null ? fmtCurrency(revenue.value) : "—"}
+            note={"targetLabel" in revenue ? revenue.targetLabel : undefined}
+          />
+          <div className="w-px h-8 bg-rule hidden sm:block" />
+          <SnapshotItem
+            label="MRR"
+            value={"value" in mrrR && mrrR.value != null ? fmtCurrency(mrrR.value) : "—"}
+            note={"targetLabel" in mrrR ? mrrR.targetLabel : undefined}
+          />
+          <div className="w-px h-8 bg-rule hidden sm:block" />
+          <SnapshotItem
+            label="Open AR"
+            value={"total" in receivables ? fmtCurrency(receivables.total) : "—"}
+            note={
+              "count" in receivables
+                ? `${receivables.count} unpaid${receivables.overdue > 0 ? ` · ${receivables.overdue} overdue` : ""}`
+                : undefined
+            }
+          />
+          <a
+            href="/money"
+            className="ml-auto text-[11px] font-mono uppercase tracking-wider text-emerald hover:underline whitespace-nowrap"
+          >
+            Open Earnings →
+          </a>
         </div>
       </div>
     </main>
+  );
+}
+
+function SnapshotItem({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div>
+      <div className="text-[9px] font-mono uppercase tracking-wider text-ink-faint">{label}</div>
+      <div className="text-[15px] font-semibold text-ink-strong tabnum">{value}</div>
+      {note && <div className="text-[10px] text-ink-muted">{note}</div>}
+    </div>
   );
 }
