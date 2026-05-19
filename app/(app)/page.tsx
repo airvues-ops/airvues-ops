@@ -10,10 +10,14 @@ import { StationBoard } from "@/components/home/DeparturesBoard";
 import { TheStack } from "@/components/home/TheStack";
 import { NAV_ITEMS } from "@/lib/nav";
 
-function firstName(email: string | null | undefined): string {
-  if (!email) return "Lee";
+// Prefer the name Google handed us (e.g. "Lee Tsao") over the email local-part.
+// Falls back to a tidy capitalized version of the email username if name is missing.
+function firstName(name: string | null | undefined, email: string | null | undefined): string {
+  if (name && name.trim()) return name.trim().split(/\s+/)[0];
+  if (!email) return "there";
   const local = email.split("@")[0];
-  return local.split(".")[0].charAt(0).toUpperCase() + local.split(".")[0].slice(1);
+  const first = local.split(/[._-]/)[0];
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
 async function safe<T>(fn: () => Promise<T>): Promise<T | { error: string }> {
@@ -30,7 +34,7 @@ const fmtCurrency = (n: number) =>
 
 export default async function HomePage() {
   const session = await getAppSession();
-  const name = firstName(session?.user?.email);
+  const name = firstName(session?.user?.name, session?.user?.email);
 
   const [revenue, mrrR, retainer, sprint, receivables, goals, boards] = await Promise.all([
     safe(revenueYtd),
