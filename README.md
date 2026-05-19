@@ -66,12 +66,12 @@ Full design: [`docs/auth-architecture-2026-05-17.md`](./docs/auth-architecture-2
 
 ## Deploy
 
-Vercel auto-deploys on push to `main` (once the GitHub integration is connected). Manual deploy:
+Vercel is connected to `airvues-ops/airvues-ops` on `main` — every push to `main` auto-deploys to production. Manual fallback:
 ```bash
 vercel --prod
 ```
 
-Env vars are set in the Vercel project (Settings → Environment Variables). Mirror with `.env.local`.
+Env vars live in the Vercel project (Settings → Environment Variables). Mirror with `.env.local` for local dev.
 
 ## Status (2026-05-19)
 
