@@ -52,11 +52,18 @@ function hasNextAuthCookie(req: NextRequest): boolean {
 export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;
 
+  // Static assets at the root (e.g. /airvues-mark.png served from public/) must be public
+  // so the login page can render before the user is authenticated.
+  const isStaticAsset = /\.(png|jpe?g|gif|svg|ico|webp|woff2?|ttf|otf|css|js|map|txt|xml)$/i.test(
+    nextUrl.pathname,
+  );
+
   const isPublic =
     nextUrl.pathname === "/login" ||
     nextUrl.pathname.startsWith("/api/auth") ||
     nextUrl.pathname.startsWith("/_next") ||
-    nextUrl.pathname === "/favicon.ico";
+    nextUrl.pathname === "/favicon.ico" ||
+    isStaticAsset;
 
   if (DEV_PREVIEW || AUTH_BYPASS) {
     return NextResponse.next();
@@ -79,5 +86,7 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Skip middleware entirely for Next.js internals + anything with a file extension
+  // (i.e. static assets served from /public). Saves an edge function invocation per asset.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };
