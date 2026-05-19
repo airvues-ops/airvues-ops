@@ -33,14 +33,54 @@ export default async function LoginPage({
     await signIn("google", { redirectTo: sp.from || "/" });
   }
 
+  const year = new Date().getFullYear();
+
   return (
-    <div className="min-h-screen grid place-items-center bg-bg p-4">
-      <div className="max-w-md w-full bg-surface border border-rule rounded-card p-10 shadow-card">
-        <div className="flex items-center gap-3 mb-8">
-          <Image src="/airvues-mark.png" alt="Airvues" width={36} height={38} priority />
-          <span className="text-[15px] font-semibold text-ink-strong">Airvues Ops</span>
+    <div className="min-h-screen grid place-items-center bg-bg p-4 relative overflow-hidden">
+      {/* Atmospheric backdrop — emerald glow above, navy depth below.
+          Subtle enough to read as ambient, not loud. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 800px 600px at 50% 25%, rgba(16, 185, 129, 0.07), transparent 60%), radial-gradient(ellipse 900px 700px at 50% 100%, rgba(34, 56, 84, 0.45), transparent 70%)",
+        }}
+        aria-hidden="true"
+      />
+
+      <div className="relative max-w-md w-full bg-surface border border-rule rounded-card p-10 shadow-card animate-in fade-in slide-in-from-bottom-2 duration-500">
+        {/* Hairline emerald accent at top of card — barely there, just enough to feel deliberate */}
+        <div
+          className="absolute top-0 left-10 right-10 h-px"
+          style={{
+            background:
+              "linear-gradient(to right, transparent, rgba(16, 185, 129, 0.4), transparent)",
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Brand block */}
+        <div className="flex items-center gap-3 mb-10">
+          <Image
+            src="/airvues-mark.png"
+            alt="Airvues"
+            width={40}
+            height={43}
+            priority
+          />
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-faint">
+              Airvues
+            </div>
+            <div className="text-[15px] font-semibold text-ink-strong leading-none mt-1">
+              Operations
+            </div>
+          </div>
         </div>
-        <h1 className="text-2xl font-semibold text-ink-strong mb-2 leading-tight">Sign in</h1>
+
+        <h1 className="text-[26px] font-semibold text-ink-strong mb-2 leading-tight tracking-tight">
+          Sign in
+        </h1>
         <p className="text-ink-muted text-[13px] mb-8 leading-relaxed">
           Internal tool for Airvues LLC. Sign in with your{" "}
           <span className="font-mono text-ink-strong">@airvues.com</span> Google account.
@@ -55,7 +95,7 @@ export default async function LoginPage({
         <form action={signInWithGoogle}>
           <button
             type="submit"
-            className="w-full bg-white text-[#1f1f1f] py-2.5 px-5 rounded font-semibold text-[13px] hover:bg-white/90 transition-colors flex items-center justify-center gap-2.5"
+            className="w-full bg-white text-[#1f1f1f] py-2.5 px-5 rounded font-semibold text-[13px] hover:bg-white/95 hover:shadow-lg transition-all flex items-center justify-center gap-2.5"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -68,9 +108,18 @@ export default async function LoginPage({
         </form>
 
         <p className="text-[11px] text-ink-faint mt-6 leading-relaxed">
-          Allowlist: any <span className="font-mono text-ink-muted">@airvues.com</span> Workspace user, plus Lee's
-          personal Gmail. Role is derived from your email — admin / lead / engineer.
+          Allowlist: any <span className="font-mono text-ink-muted">@airvues.com</span> Workspace
+          user, plus Lee&apos;s personal Gmail. Role is derived from your email —{" "}
+          <span className="font-mono text-ink-muted">admin</span> /{" "}
+          <span className="font-mono text-ink-muted">lead</span> /{" "}
+          <span className="font-mono text-ink-muted">engineer</span>.
         </p>
+
+        {/* Signature footer — small but deliberate */}
+        <div className="mt-8 pt-5 border-t border-rule flex items-center justify-between text-[10px] font-mono text-ink-faint uppercase tracking-wider">
+          <span>Airvues LLC</span>
+          <span className="tabnum">© {year}</span>
+        </div>
       </div>
     </div>
   );
