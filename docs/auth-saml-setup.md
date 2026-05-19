@@ -210,6 +210,6 @@ Both paths coexist in code — no need to revert commits.
 
 ## Related
 
-- Repo CLAUDE.md: `~/Desktop/Coding Workspace/airvues-ops/CLAUDE.md`
+- Repo CLAUDE.md: [`/CLAUDE.md`](../CLAUDE.md)
 - Auth code: `lib/auth.ts`, `lib/saml.ts` (new), `lib/session.ts`
 - API routes: `app/api/auth/saml/*`

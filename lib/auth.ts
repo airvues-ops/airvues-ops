@@ -1,7 +1,7 @@
 // NextAuth v5 — Google OAuth + email allowlist.
-// We do NOT use Google's `hd` Workspace domain hint because Lee signs in with a
-// personal Gmail (leetsao1@gmail.com). The `ALLOWED_USERS` env JSON is the hard
-// gate — only allowlisted emails get a session. Per docs/auth-architecture-2026-05-17.md.
+// We do NOT use Google's `hd` Workspace domain hint because some admins sign in
+// with personal Gmail addresses. The `ALLOWED_USERS` env JSON is the hard gate —
+// only allowlisted emails get a session. Per docs/auth-architecture-2026-05-17.md.
 
 import NextAuth, { type DefaultSession } from "next-auth";
 import Google from "next-auth/providers/google";

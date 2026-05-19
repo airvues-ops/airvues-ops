@@ -1,11 +1,9 @@
 # Airvues Ops Dashboard — Design Spec
 
-> **Status:** Draft v1
-> **Author:** Lee Tsao + Claude
+> **Status:** Historical design doc (2026-04-24). For current state of the codebase, see [`/CLAUDE.md`](../../CLAUDE.md) and [`/HANDOVER.md`](../../HANDOVER.md). This spec captures the original v1 design — most of it has shipped, with deviations documented in the auth + handover docs.
+>
 > **Date:** 2026-04-24
-> **Mockup:** [`/mockups/founder-home-v2.html`](../../mockups/founder-home-v2.html) (v2.1, agent-reviewed)
-> **Repo:** `~/Desktop/Coding Workspace/airvues-ops/`
-> **Deploy target:** Vercel (`ops.airvues.com` long-term, `airvues-ops.vercel.app` for dev)
+> **Deploy target:** Vercel (`airvues-ops.vercel.app`)
 
 ---
 
@@ -225,21 +223,21 @@ Excluded from pipeline view (terminal states): `Ready to Close Project · Projec
 #### App Users (v0)
 
 ```
-ALLOWED_USERS='[{"email":"leetsao1@gmail.com","role":"admin"},{"email":"enrique@airvues.com","role":"admin"},{"email":"shania@airvues.com","role":"editor"},{"email":"jose@airvues.com","role":"editor"},{"email":"bracho@airvues.com","role":"editor"},{"email":"cody@airvues.com","role":"viewer"}]'
+ALLOWED_USERS='[{"email":"founder1@airvues.com","role":"admin"},{"email":"founder2@airvues.com","role":"admin"},{"email":"lead1@airvues.com","role":"lead"},{"email":"lead2@airvues.com","role":"lead"},{"email":"lead3@airvues.com","role":"lead"},{"domain":"airvues.com","role":"engineer"}]'
 ```
 
 NextAuth Email provider validates against the list at sign-in. Upgrade path to Vercel Postgres adapter once we want self-service invites + last-seen tracking.
 
-### 6c. Airtable schema additions required (admin = Lee)
+### 6c. Airtable schema additions required
 
-Per `.memory/feedback-airtable-schema-changes.md`, every net-new field is enumerated with table + owner.
+Every net-new field is enumerated with table + owner.
 
 | Table | Field | Type | Reason | Owner |
 |---|---|---|---|---|
-| Subscriptions `tblZnJdKLwgj5GMOb` | `Category` | singleSelect: Database / Hosting / Comms / Banking / Payments / Meetings / AI / Calendar / Other | Powers Stack section grouping | Lee |
-| Subscriptions | `Health` | singleSelect: Healthy / Warn / Down | Powers Stack health pills | Lee |
-| Subscriptions | `URL` | url | Quick link to vendor admin | Lee |
-| Subscriptions | `Owner` | singleCollaborator | Who owns the renewal/account | Lee |
+| Subscriptions `tblZnJdKLwgj5GMOb` | `Category` | singleSelect: Database / Hosting / Comms / Banking / Payments / Meetings / AI / Calendar / Other | Powers Stack section grouping | Admin |
+| Subscriptions | `Health` | singleSelect: Healthy / Warn / Down | Powers Stack health pills | Admin |
+| Subscriptions | `URL` | url | Quick link to vendor admin | Admin |
+| Subscriptions | `Owner` | singleCollaborator | Who owns the renewal/account | Admin |
 
 ### 6d. "Since yesterday" activity feed — concrete spec
 
@@ -277,9 +275,9 @@ type Snapshot = {
 
 **Fallback if Vercel KV unavailable on cold-start:** activity strip renders only the `createdTime`-based events ("New leads") + the live overdue calc, omits diff-based events. No crash.
 
-**Total schema changes: 4 fields, 1 table.** All on Subscriptions, owned by Lee. No other table modified for MVP1.
+**Total schema changes: 4 fields, 1 table.** All on Subscriptions. No other table modified for MVP1.
 
-**Deferred to Phase 2 (Lee to confirm before adding):**
+**Deferred to Phase 2 (admin to confirm before adding):**
 
 | Table | Field | Type | Reason |
 |---|---|---|---|
@@ -293,7 +291,7 @@ type Snapshot = {
 2. "Sign in with Google" button → OAuth flow with `hd=airvues.com` (Google enforces Workspace domain at the consent screen — non-airvues.com accounts cannot complete sign-in).
 3. After Google returns → session created (JWT, 30d).
 4. Email matched against `ALLOWED_USERS` → role attached to session.
-5. Lee's `leetsao1@gmail.com` is also allowed (since he uses Gmail personally, not @airvues.com) — handled by adding gmail.com domain exception OR by allowing one-off `personalEmails` allowlist outside the `hd` check.
+5. Admins with personal Gmail addresses are also allowed — handled by removing the `hd` domain restriction and using `ALLOWED_USERS` as the single gate. (See `docs/auth-architecture-2026-05-17.md` for the decided approach.)
 
 ### Permission checks
 Two layers:
@@ -448,10 +446,7 @@ MVP1 is shippable when:
 
 ## 14. References
 
-- Mockup: `mockups/founder-home-v2.html` (v2.1 agent-reviewed; v2.2 needed to rename pipeline lanes per §6a)
-- Live schema cache: `/tmp/airvues_schema.json` (regenerate with `curl` per `Airvues/CLAUDE.md`)
-- Brand kit reference: `~/Desktop/claude-projects/Airvues/full-time-hires-may-2026/shania-banton-onboarding.html`
-- Existing Vercel template: `~/Desktop/Coding Workspace/life-context-web/`
-- Master plan / KPI targets: `~/Desktop/claude-projects/Airvues/2026 Yearly Planning/Airvues_2026_Master_Plan.md`
-- Security incident memory: `.memory/gbdb-security-key-exposure.md` (why server-only Airtable matters)
-- Verified field-ID inventory: see §6a tables; canonical source is the live Meta API at `https://api.airtable.com/v0/meta/bases/app4vhhWMbRFOloOU/tables`
+- Mockup: `mockups/founder-home-v2.html` (historical, v2.1 agent-reviewed)
+- Live schema source of truth: `lib/schema.ts`
+- Verified field-ID inventory: see §6a tables; canonical source is the live Meta API at `https://api.airtable.com/v0/meta/bases/app4vhhWMbRFOloOU/tables` (run `scripts/verify-schema.ts` to validate)
+- Current state of the build: [`/CLAUDE.md`](../../CLAUDE.md) and [`/HANDOVER.md`](../../HANDOVER.md)

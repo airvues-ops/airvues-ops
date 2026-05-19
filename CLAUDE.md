@@ -2,11 +2,11 @@
 
 > Read this entirely before touching code. These rules exist because something already broke when they weren't followed.
 >
-> **Last updated:** 2026-05-19 (post-OAuth flip + agile build A-E + hygiene tooling)
+> **Last updated:** 2026-05-19 (TopBar widgets + personal-first home + people resolver)
 
 ## What this is
 
-Internal operations dashboard for Airvues LLC. Next.js 14 App Router on Vercel. Reads + writes Airtable base `app4vhhWMbRFOloOU`. Used by Lee (COO), Enrique (CTO), the trio (Shania/Jose/Bracho), and contractors. **Production. Real data. Real revenue numbers.**
+Internal operations dashboard for Airvues LLC. Next.js 14 App Router on Vercel. Reads + writes Airtable base `app4vhhWMbRFOloOU`. Used by the COO, CTO, the trio (leads), engineers, and contractors. **Production. Real data. Real revenue numbers.**
 
 URL: `https://airvues-ops.vercel.app`
 
@@ -30,7 +30,7 @@ These break things. Do not bypass.
 4. **DO NOT** confuse `Story.Status` (lowercase p: `"In progress"`) with `Sprint.Status` (capital P: `"In Progress"`). Two different fields, two different conventions. Both are correct.
 5. **DO NOT** write to `support@airvues.com` or treat it as a person. It's a placeholder mailbox — caused 150 unrouted payments. Never assign work to it or use it as a Payee.
 6. **DO NOT** create new role values outside the 4-role enum (`admin / lead / engineer / client`). Legacy `editor / viewer` still parse but don't add more synonyms.
-7. **DO NOT** commit `.env.local`, `scripts/output/*.json`, or anything in `.credentials/` (those live in `~/Desktop/claude-projects/.credentials/`, NOT in this repo). `.gitignore` catches the obvious cases — verify before you stage.
+7. **DO NOT** commit `.env.local`, `scripts/output/*.json`, or anything from the credentials vault. `.gitignore` catches the obvious cases — verify before you stage.
 8. **DO NOT** bypass `requireRole` with "I'll just check role in the client". Client-side role is spoofable. Server-side gate is the only gate.
 9. **DO NOT** make Airtable PATCH/POST calls outside `lib/airtable.ts`. The wrapper handles batching, rate limiting, typecast.
 10. **DO NOT** add a third place for routes. `lib/nav.ts` is the single source of truth. Sidebar + MobileNav + home Jump-To all consume it.
@@ -80,30 +80,32 @@ These break things. Do not bypass.
 
 7. **Single source of truth.** Constants in `lib/`. Nav in `lib/nav.ts`. Types in `lib/*-types.ts` (client-safe). Mutations in `lib/mutations/`.
 
-8. **Verify before claiming done.** `npx tsc --noEmit` + `npm run build` + (where relevant) live route checks. See `docs/qc-checklist.md` if it exists, otherwise the verification pattern is: typecheck → build → deploy → curl key routes.
+8. **Verify before claiming done.** `npx tsc --noEmit` + `npm run build` + (where relevant) live route checks. Verification pattern: typecheck → build → deploy → curl key routes.
 
 ## Auth model (current — post 2026-05-18 OAuth flip)
 
 - **Provider:** Google OAuth via NextAuth v5 (`lib/auth.ts`)
-- **No domain hint at provider level** — `hd: "airvues.com"` was removed so personal Gmail (`leetsao1@gmail.com`) works
+- **No domain hint at provider level** — `hd: "airvues.com"` was removed so admins with personal Gmail addresses can sign in.
 - **Gate is `ALLOWED_USERS` env JSON:** entries are either `{email, role}` OR `{domain, role}`. Email matches beat domain matches.
   - Domain match (`{"domain":"airvues.com","role":"engineer"}`) means new `@airvues.com` Workspace hires auto-onboard as engineer.
-  - Email matches bump specific people higher (Lee + Enrique = admin; Shania, Jose, Bracho = lead).
+  - Email matches bump specific people higher (founders = admin; trio leads = lead).
 - **4 roles:** `admin / lead / engineer / client`. Legacy `editor / viewer` parse but are deprecated.
 - **`requireRole(...allowed)` in `lib/authz.ts`** — server-side gate. Throws `AuthzError`. Call at the top of every Server Action.
 - **`canMutate()`** — boolean helper for UI gating (`canEdit` prop). Returns true for admin/lead/editor.
-- **Session priority in `lib/session.ts`:** NextAuth first, lingering SAML cookie as legacy fallback.
+- **Session priority in `lib/session.ts`:** NextAuth first, lingering SAML cookie as legacy fallback. Dev-only `SYNTHETIC_DEV_SESSION` if `DEV_PREVIEW` or `AUTH_BYPASS` env is set.
 
 **Password auth was deleted on 2026-05-18.** Don't reintroduce.
 
 **SAML files (`lib/saml.ts`, `lib/samlSession.ts`, `app/api/auth/saml/*`) are dormant.** Not deleted to preserve graceful fallback for any lingering cookies. Don't wire them back into the active path.
+
+**Token refresh (2026-05-19):** Google access tokens expire after 1 hour. `refreshGoogleAccessToken()` in `lib/auth.ts` silently refreshes via the stored `refresh_token` when within 60s of expiry. Requires `prompt: "consent"` + `access_type: "offline"` on the initial OAuth params to get the refresh token issued.
 
 ## File map (current, not aspirational)
 
 ```
 app/
 ├── (app)/
-│   ├── page.tsx                  Home: KPIs + 2026 goals + Jump-to
+│   ├── page.tsx                  Home: personal-first landing (Your day → The board → Stack → firm snapshot)
 │   ├── me/page.tsx               Personal scorecard (admin picker until People-table auth)
 │   ├── money/page.tsx            Invoices + AR aging + filters
 │   ├── pipeline/page.tsx         Quotes funnel
@@ -119,8 +121,8 @@ app/
 │   ├── hygiene/
 │   │   ├── page.tsx              Data quality index
 │   │   └── orphans/page.tsx      Orphan story triage
-│   └── layout.tsx                Sidebar + MobileNav + auth gate
-├── (auth)/login/page.tsx         Google sign-in only
+│   └── layout.tsx                Sidebar + MobileNav + TopBar + auth gate
+├── (auth)/login/page.tsx         Google sign-in only — branded login with aurora backdrop + particle network
 └── api/
     ├── auth/[...nextauth]/       NextAuth handler
     └── auth/saml/                Dormant, legacy fallback only
@@ -131,22 +133,25 @@ components/
 ├── sprints/                      KanbanCard, SprintBoard, SprintPlanBoard, SprintRow, VelocityOverview, NewSprintModal
 ├── me/                           PersonScorecard, PersonPicker
 ├── hygiene/                      OrphanTriage, OrphanGroupCard
-├── home/                         HomeKpiCard, HomeJumpCard, CompanyGoals, GoalBar
+├── home/                         HomeKpiCard, HomeJumpCard, CompanyGoals, GoalBar, YourDay, DeparturesBoard (StationBoard), TheStack
+├── header/                       TopBar, CalendarWidget, GmailWidget, TimeWeatherWidget (sticky topbar, desktop only)
+├── login/                        AuroraBackdrop, ParticleNetwork, Manifesto, LiveClock (login brand expression)
 ├── clients/                      ClientsDashboard, ClientSheet
 ├── team/                         TeamDashboard
 ├── money/                        MoneyDashboard, InvoiceTable, InvoiceSheet, ArAgingChart, FilterBar
 ├── pipeline/                     PipelineDashboard, QuoteTable, QuoteSheet, FilterBar
 ├── stack/                        StackDashboard
-├── ui/                           PageHeader, SectionTitle, StatCard, Sparkline
-├── Sidebar.tsx                   Desktop nav
+├── ui/                           PageHeader, SectionTitle, StatCard, Sparkline, NumberTicker
+├── SidebarNav.tsx                Desktop nav (client — uses usePathname for active state)
+├── Sidebar.tsx                   Desktop nav shell
 └── MobileNav.tsx                 Mobile drawer nav
 
 lib/
 ├── airtable.ts                   Server-only client (listRecordsCached, patchRecords, createRecords)
 ├── schema.ts                     Field-ID map (canonical reference) — 30 tables
-├── auth.ts                       NextAuth + Google + AppRole + role resolver
+├── auth.ts                       NextAuth + Google + AppRole + role resolver + token refresh
 ├── authz.ts                      requireRole, canMutate
-├── session.ts                    getAppSession (NextAuth + legacy SAML fallback)
+├── session.ts                    getAppSession (NextAuth + legacy SAML fallback + dev bypass)
 ├── nav.ts                        Single source of truth for routes
 ├── engineering.ts                + engineering-types.ts — board data
 ├── scorecard.ts                  + scorecard-types.ts — /me data
@@ -156,9 +161,15 @@ lib/
 ├── orphan-triage.ts              + orphan-triage-types.ts — hygiene
 ├── hygiene.ts                    Index data
 ├── quotes-light.ts               Quote picker options
-├── kpi.ts                        Home page KPIs (revenue, MRR, AR, retainer, sprint delivery)
-├── clients.ts, team.ts, stack.ts Per-page data layers (pre-existing)
-├── money.ts, pipeline.ts         Per-page data layers (pre-existing)
+├── kpi.ts                        Firm KPIs (revenue, MRR, AR, retainer, sprint delivery)
+├── landing.ts                    Home Departures + Arrivals operational state
+├── personal-landing.ts           Home "Your day" — assigned stories + today's events for the signed-in user
+├── people.ts                     Resolve session.email → People recId (canonical-record tiebreakers for dupes)
+├── calendar.ts                   Server-only Google Calendar reader (uses session.accessToken)
+├── gmail.ts                      Server-only Gmail reader — unread inbox list
+├── weather.ts                    Vercel edge geo headers + Open-Meteo (10-min cache)
+├── clients.ts, team.ts, stack.ts Per-page data layers
+├── money.ts, pipeline.ts         Per-page data layers
 └── mutations/
     ├── story.ts                  updateStory, bulkUpdateStories, planStory, setStorySprint, createStory
     └── sprint.ts                 createSprint, updateSprintStatus
@@ -190,7 +201,7 @@ docs/
 
 - **528 orphan Stories** — no Assignee. `/hygiene/orphans` UI exists for bulk-triage.
 - **150 unrouted Team Payments** = $41K stuck on `support@airvues.com` placeholder. Auto-inference deferred.
-- **People dupes:** Bracho×2, Jose×2, Cody×2, Shania×2. Blocks Phase 2 auth migration.
+- **People dupes:** several internal team members appear twice. Blocks Phase 2 auth migration. Use `PERSON_OVERRIDES` env JSON to pin email → canonical recId.
 - **Time Entries empty** — velocity hours metrics return zero until daily logging starts.
 - **"Unknown" company** — $36K attributed revenue, name is placeholder. Manual triage pending.
 
@@ -203,8 +214,9 @@ docs/
 - **Drag-and-drop kanban** — currently click-based quick-advance + ship buttons.
 - **Time Entries logging UI** — empty until adoption ritual exists.
 - **CSV export from /backlog or /money**.
-- **Global search bar**.
+- **Global search bar / Cmd+K command palette**.
 - **Activity feed** (who changed what, when).
+- **Asana / GitHub PR integrations** — sketched but not built.
 
 ## How to test what you change
 
@@ -221,24 +233,17 @@ docs/
 
 ## When in doubt
 
-- **Don't fuck up Lee's base.** Production Airtable has real revenue numbers. A bad PATCH can silently corrupt invoices, payments, or story commission math.
+- **Don't corrupt the production base.** Real revenue numbers live in it. A bad PATCH can silently corrupt invoices, payments, or story commission math.
 - **Read `docs/auth-architecture-2026-05-17.md`** before changing anything in `lib/auth.ts` / `lib/session.ts` / `lib/authz.ts`.
 - **If a feature seems redundant,** check if it's intentional (e.g., SAML files are dormant but kept for legacy session fallback).
-- **If a memory contradicts code,** trust the code — memory entries decay.
 - **Use a subagent to audit** anything risky before shipping. Pattern: spawn read-only audit, address findings, then deploy.
 
 ## Onboarding new agents to this codebase
 
 1. Read this file (you just did).
-2. Read `docs/auth-architecture-2026-05-17.md` and `docs/auth-runbook-google-oauth.md`.
-3. Skim `lib/schema.ts` to see what tables/fields exist.
-4. Run `npm run dev` locally with `.env.local` filled in. Sign in via Google. Click through every page.
-5. Look at `git log` for the recent commits — they describe what was built and why.
-6. **Don't ship anything you can't verify with `tsc + build + curl`.**
-
-## Related docs (outside this repo)
-
-- Master Airvues planning: `~/Desktop/claude-projects/Airvues/CLAUDE.md`
-- Airtable schema details: `~/Desktop/claude-projects/Airvues/airtable-pm-improvements/`
-- Master plan / KPI targets: `~/Desktop/claude-projects/Airvues/2026 Yearly Planning/Airvues_2026_Master_Plan.md`
-- Credentials vault: `~/Desktop/claude-projects/.credentials/airvues/`
+2. Read [`HANDOVER.md`](./HANDOVER.md) for external services, env vars, and where credentials come from.
+3. Read [`docs/auth-architecture-2026-05-17.md`](./docs/auth-architecture-2026-05-17.md) and [`docs/auth-runbook-google-oauth.md`](./docs/auth-runbook-google-oauth.md).
+4. Skim `lib/schema.ts` to see what tables/fields exist.
+5. Run `npm run dev` locally with `.env.local` filled in. Sign in via Google. Click through every page.
+6. Look at `git log` for the recent commits — they describe what was built and why.
+7. **Don't ship anything you can't verify with `tsc + build + curl`.**

@@ -28,17 +28,19 @@ export type AppSession = {
   };
 } | null;
 
-const SYNTHETIC_LEE_SESSION: AppSession = {
+// Dev-only synthetic session used when DEV_PREVIEW or AUTH_BYPASS is set.
+// Never reached in production — gated by env, not user input.
+const SYNTHETIC_DEV_SESSION: AppSession = {
   user: {
-    email: "leetsao1@gmail.com",
-    name: "Lee Tsao",
+    email: "dev@airvues.com",
+    name: "Dev Admin",
     role: "admin",
   },
 };
 
 export async function getAppSession(): Promise<AppSession> {
   if (DEV_PREVIEW || AUTH_BYPASS) {
-    return SYNTHETIC_LEE_SESSION;
+    return SYNTHETIC_DEV_SESSION;
   }
 
   // 1. NextAuth Google OAuth — primary auth path

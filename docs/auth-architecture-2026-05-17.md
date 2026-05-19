@@ -23,7 +23,7 @@
 - Create OAuth 2.0 client in Google Cloud Console.
 - Add `https://airvues-ops.vercel.app/api/auth/callback/google` to authorized redirect URIs.
 - Set `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` / `NEXTAUTH_URL` in Vercel.
-- Remove `hd: "airvues.com"` from `lib/auth.ts:56` — it blocks `leetsao1@gmail.com`. Allowlist via `ALLOWED_USERS` instead.
+- Remove `hd: "airvues.com"` from `lib/auth.ts:56` — it blocks admins signing in with personal Gmail addresses. Allowlist via `ALLOWED_USERS` instead.
 - Replace login page password form with "Sign in with Google" button.
 - Update `lib/session.ts` to prefer NextAuth over the SAML cookie.
 - DELETE: `lib/saml.ts`, `lib/samlSession.ts`, `app/api/auth/saml/*`, `app/api/auth/password/login/route.ts`.
@@ -63,7 +63,7 @@
 
 - **Bracho×2, Jose×2, Cody×2, Shania×2 duplicate People records** — the audit flagged these. `resolvePersonByEmail` returns the canonical record by these tiebreakers: `Status=Active` → `Type∈{Internal, Internal team member}` → earliest `Created` → lowest record ID.
 - **`PERSON_OVERRIDES` env JSON** lets us pin specific email→recId mappings during dedupe (`{"jose@airvues.com":"recXXXX"}`).
-- **Lee logging in as `leetsao1@gmail.com`** (personal Gmail, no airvues.com People row) — handled by `PERSON_OVERRIDES`: `{"leetsao1@gmail.com":"<Lee's People recId>"}`.
+- **Admins signing in with personal Gmail addresses** (no `@airvues.com` row in People) — handled by `PERSON_OVERRIDES`: `{"<personal-email>":"<People recId>"}`.
 
 ## Files to touch (Phase 1)
 
@@ -86,11 +86,9 @@
 - `middleware.ts` accepts either SAML cookie OR NextAuth cookie. Has `AUTH_BYPASS` kill switch and `DEV_PREVIEW` for local.
 - `lib/session.ts` resolves identity in order: SAML cookie → NextAuth `auth()`. Both produce the same `AppSession` shape.
 
-## Next concrete action when Lee approves
+## Status
 
-1. Lee creates OAuth client in Google Cloud Console + sends back the client ID/secret.
-2. Lee sets env vars in Vercel.
-3. I make the ~25-30 LOC changes + delete SAML files.
-4. Verify Google sign-in works for `leetsao1@gmail.com` and at least one `@airvues.com` account.
-5. Pull `ACCESS_PASSWORD` from Vercel env. Shared password no longer works.
-6. Move to Phase 2: roles + `/me` auto-resolution.
+Phase 1 completed 2026-05-18 — Google OAuth live, password + SAML dormant. See `docs/auth-runbook-google-oauth.md`.
+Phase 2 (Airtable role resolution) — `lib/people.ts` resolver shipped 2026-05-19; still uses `ALLOWED_USERS` env JSON as authoritative role source until People dedupe completes.
+Phase 3 (field-level redaction) — not started.
+Phase 4 (client portals) — not started.
