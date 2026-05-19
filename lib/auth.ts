@@ -68,6 +68,51 @@ declare module "next-auth" {
     } & DefaultSession["user"];
     accessToken?: string;
     accessTokenExpires?: number;
+    error?: string;
+  }
+}
+
+declare module "@auth/core/jwt" {
+  interface JWT {
+    role?: AppRole;
+    accessToken?: string;
+    refreshToken?: string;
+    accessTokenExpires?: number;
+    error?: string;
+  }
+}
+
+// Refresh an expired Google access token using the refresh_token from initial consent.
+// Returns the new token + expiry, or null on failure (caller should treat as no-token).
+async function refreshGoogleAccessToken(refreshToken: string): Promise<{
+  access_token: string;
+  expires_in: number;
+  refresh_token?: string;
+} | null> {
+  const clientId = process.env.AUTH_GOOGLE_ID;
+  const clientSecret = process.env.AUTH_GOOGLE_SECRET;
+  if (!clientId || !clientSecret) return null;
+  try {
+    const resp = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    });
+    if (!resp.ok) {
+      // eslint-disable-next-line no-console
+      console.warn("[auth.refresh] Google rejected refresh token:", resp.status);
+      return null;
+    }
+    return await resp.json();
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn("[auth.refresh] refresh error:", (e as Error).message);
+    return null;
   }
 }
 
@@ -111,7 +156,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, user, account }) {
-      // First sign-in: persist role + access token (for calendar API calls).
+      // First sign-in: persist role + tokens.
       if (user?.email) {
         const role = findRole(user.email);
         if (role) token.role = role;
@@ -120,6 +165,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
+        return token;
+      }
+
+      // Subsequent calls: if the access_token is still valid (with 60s buffer), use it.
+      if (
+        token.accessToken &&
+        token.accessTokenExpires &&
+        Date.now() < token.accessTokenExpires - 60_000
+      ) {
+        return token;
+      }
+
+      // Expired (or about to). Try to refresh.
+      if (token.refreshToken) {
+        const refreshed = await refreshGoogleAccessToken(token.refreshToken);
+        if (refreshed) {
+          token.accessToken = refreshed.access_token;
+          token.accessTokenExpires = Date.now() + refreshed.expires_in * 1000;
+          // Google sometimes rotates the refresh token; keep the new one if provided
+          if (refreshed.refresh_token) {
+            token.refreshToken = refreshed.refresh_token;
+          }
+          delete token.error;
+        } else {
+          // Refresh failed — mark the token so the UI can prompt re-auth
+          token.error = "RefreshFailed";
+        }
       }
       return token;
     },
@@ -128,8 +200,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as AppRole;
       }
       if (token.accessToken) {
-        session.accessToken = token.accessToken as string;
-        session.accessTokenExpires = token.accessTokenExpires as number | undefined;
+        session.accessToken = token.accessToken;
+        session.accessTokenExpires = token.accessTokenExpires;
+      }
+      if (token.error) {
+        session.error = token.error;
       }
       return session;
     },
